@@ -24,3 +24,13 @@ go run -tags tea ./cmd/mock -tea
 
 Note all logging will be logged to file `mock.log` in the project root directory.
 
+Example mock output:
+
+```
+┌─────────────────────────┐
+│Knob1: 0    DIN:         │
+│Knob2: 0    AIN:0.00v    │
+│B1:Down B2:Down          │
+└─────────────────────────┘
+```
+
