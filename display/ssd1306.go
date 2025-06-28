@@ -6,6 +6,8 @@ package display
 import (
 	"image/color"
 
+	"machine"
+
 	"tinygo.org/x/drivers/ssd1306"
 	"tinygo.org/x/tinyfont"
 	"tinygo.org/x/tinyfont/proggy"

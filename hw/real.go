@@ -4,6 +4,7 @@
 package hw
 
 import (
+	"europi/display"
 	"europi/util"
 	"machine"
 )
@@ -142,18 +143,19 @@ func ConfigureCV() {
 func SetupEuroPi() *IO {
 	machine.InitADC()
 	io := &IO{
-		K1:  NewKnob(machine.ADC1),
-		K2:  NewKnob(machine.ADC2),
-		B1:  NewButton(machine.GPIO4),
-		B2:  NewButton(machine.GPIO5),
-		DIN: NewDigitalInput(machine.GPIO22, true),
-		AIN: NewAnalogueInput(machine.ADC0),
-		CV1: &CV{Index: 1},
-		CV2: &CV{Index: 2},
-		CV3: &CV{Index: 3},
-		CV4: &CV{Index: 4},
-		CV5: &CV{Index: 5},
-		CV6: &CV{Index: 6},
+		K1:      NewKnob(machine.ADC1),
+		K2:      NewKnob(machine.ADC2),
+		B1:      NewButton(machine.GPIO4),
+		B2:      NewButton(machine.GPIO5),
+		DIN:     NewDigitalInput(machine.GPIO22, true),
+		AIN:     NewAnalogueInput(machine.ADC0),
+		CV1:     &CV{Index: 1},
+		CV2:     &CV{Index: 2},
+		CV3:     &CV{Index: 3},
+		CV4:     &CV{Index: 4},
+		CV5:     &CV{Index: 5},
+		CV6:     &CV{Index: 6},
+		Display: display.InitDisplay(),
 	}
 	ConfigureCV()
 	return io
