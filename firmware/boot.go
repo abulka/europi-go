@@ -1,5 +1,5 @@
 // App interface, registry, shared app logic
-package app
+package firmware
 
 import (
 	hw "europi/controls"

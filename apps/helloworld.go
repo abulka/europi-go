@@ -1,8 +1,10 @@
 // HelloWorld app
-package app
+package apps
 
 import (
 	hw "europi/controls"
+	"europi/firmware"
+	"europi/logutil"
 	"time"
 )
 
@@ -11,19 +13,19 @@ type HelloWorld struct{}
 func (c HelloWorld) Name() string { return "Hello World" }
 
 func (c HelloWorld) Run(io *hw.Controls) {
-	println("Hello, World!")
+	logutil.Println("Hello, World!")
 	io.Display.ClearDisplay()
 	io.Display.WriteLine(0, 10, "Hello, World!")
 	io.Display.Display()
 
 	for {
-		if ShouldExit(io) {
+		if firmware.ShouldExit(io) {
 			break
 		}
 	}
-	println("Exiting HelloWorld application.")
+	logutil.Println("Exiting HelloWorld application.")
 	io.Display.ClearDisplay()
 	io.Display.Display()
-	println("Display cleared. Goodbye!")
+	logutil.Println("Display cleared. Goodbye!")
 	time.Sleep(1 * time.Second)
 }

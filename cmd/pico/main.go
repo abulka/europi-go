@@ -3,8 +3,9 @@
 package main
 
 import (
-	"europi/app"
 	hw "europi/controls"
+	"europi/firmware"
+	"europi/apps"
 	"time"
 )
 
@@ -27,21 +28,21 @@ func main() {
 	println("EuroPi configured (production mode).")
 
 	// Register apps
-	app.RegisterApp(app.Diagnostic{})
-	app.RegisterApp(app.HelloWorld{})
+	firmware.RegisterApp(apps.Diagnostic{})
+	firmware.RegisterApp(apps.HelloWorld{})
 
 	splashScreen(iox)
 	println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
 
 	for {
-		idx := app.MenuChooser(iox)
+		idx := firmware.MenuChooser(iox)
 		if idx < 0 {
 			println("Exiting main menu loop.")
 			break
 		}
-		println("Launching app:", app.GetAppName(idx))
-		app.RunApp(idx, iox)
-		println(app.GetAppName(idx), "completed. Returning to menu...")
+		println("Launching app:", firmware.GetAppName(idx))
+		firmware.RunApp(idx, iox)
+		println(firmware.GetAppName(idx), "completed. Returning to menu...")
 		splashScreen(iox)
 	}
 }

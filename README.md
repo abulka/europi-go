@@ -16,3 +16,11 @@ To run the mock version, which simulates the EuroPi hardware without needing the
 go run ./cmd/mock
 ```
 
+For fancy bubbletea mock UI, you can run:
+
+```bash
+go run -tags tea ./cmd/mock -tea
+```
+
+Note all logging will be logged to file `mock.log` in the project root directory.
+

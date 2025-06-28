@@ -1,8 +1,13 @@
+//go:build !tinygo
+// +build !tinygo
+
 // Diagnostic app
-package app
+package apps
 
 import (
 	hw "europi/controls"
+	"europi/firmware"
+	"europi/logutil"
 	"math/rand"
 	"strconv"
 	"time"
@@ -46,12 +51,12 @@ func (c Diagnostic) Run(io *hw.Controls) {
 		btn2Pressed := io.B2.Pressed()
 		dinState := io.DIN.Get()
 
-		if ShouldExit(io) {
+		if firmware.ShouldExit(io) {
 			break
 		}
 
 		if loopCount%PRINT_STEP == 0 {
-			println("K1:", knob1Value, "K2:", knob2Value, "AIN:", ainValue, "AINv:", ainVolts, "B1:", btn1Pressed, "B2:", btn2Pressed, "DIN:", dinState)
+			logutil.Println("K1:", knob1Value, "K2:", knob2Value, "AIN:", ainValue, "AINv:", ainVolts, "B1:", btn1Pressed, "B2:", btn2Pressed, "DIN:", dinState)
 		}
 
 		btn1Msg := "Up"
