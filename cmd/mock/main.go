@@ -1,14 +1,16 @@
+//go:build !tinygo
+
 package main
 
 import (
 	"europi/app"
-	"europi/hw"
+	hw "europi/controls"
 	"time"
 )
 
 const version = "v0.01"
 
-func splashScreen(io *hw.IO) {
+func splashScreen(io *hw.Controls) {
 	io.Display.ClearDisplay()
 	io.Display.WriteLine(0, 10, "EuroPi Simplified")
 	io.Display.WriteLine(0, 20, "by TinyGo "+version)
@@ -21,7 +23,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 	println("Starting...")
 
-	iox := hw.SetupEuroPiMock()
+	iox := hw.SetupEuroPi()
 	println("EuroPi configured (production mode).")
 
 	// Register apps

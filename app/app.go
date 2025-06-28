@@ -2,13 +2,13 @@
 package app
 
 import (
-	"europi/hw"
+	hw "europi/controls"
 	"time"
 )
 
 type App interface {
 	Name() string
-	Run(io *hw.IO)
+	Run(io *hw.Controls)
 }
 
 var appRegistry []App
@@ -24,7 +24,7 @@ func GetAppName(idx int) string {
 	return ""
 }
 
-func RunApp(idx int, io *hw.IO) {
+func RunApp(idx int, io *hw.Controls) {
 	if idx >= 0 && idx < len(appRegistry) {
 		appRegistry[idx].Run(io)
 	}
@@ -49,7 +49,7 @@ func (m *MenuDisplayState) Update(lines [3]string) {
 }
 
 // MenuChooser displays a scrollable menu of registered apps, allows selection with K2, launch with B2
-func MenuChooser(io *hw.IO) int {
+func MenuChooser(io *hw.Controls) int {
 	numApps := len(appRegistry)
 	if numApps == 0 {
 		return -1
@@ -130,7 +130,7 @@ func abs(x int) int {
 // ShouldExit returns true if both B1 and B2 are pressed and held for 2s
 var doubleButtonPressLastMs int64 = 0
 
-func ShouldExit(io *hw.IO) bool {
+func ShouldExit(io *hw.Controls) bool {
 	now := time.Now().UnixMilli()
 	if io.B1.Pressed() && io.B2.Pressed() {
 		if doubleButtonPressLastMs == 0 {

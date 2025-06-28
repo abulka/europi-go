@@ -1,5 +1,5 @@
 // IO struct and interfaces (IKnob, IButton, etc.)
-package hw
+package controls
 
 // IKnob interface
 // Returns the current value of the knob
@@ -33,9 +33,9 @@ type IOledDevice interface {
 	WriteLine(x, y int16, text string)
 }
 
-// IO struct holds all hardware/mocked IO for EuroPi
+// Controls struct holds all hardware/mocked Controls for EuroPi
 // This is used by both production and mock entry points
-type IO struct {
+type Controls struct {
 	// Inputs
 	K1, K2 IKnob
 	B1, B2 IButton

@@ -2,7 +2,7 @@
 package app
 
 import (
-	"europi/hw"
+	hw "europi/controls"
 	"math/rand"
 	"strconv"
 	"time"
@@ -31,7 +31,7 @@ func (d *DiagnosticDisplayState) Update(knob1, knob2, ain int, btn1, btn2 bool, 
 	d.Din = din
 }
 
-func (c Diagnostic) Run(io *hw.IO) {
+func (c Diagnostic) Run(io *hw.Controls) {
 	displayState := &DiagnosticDisplayState{}
 	const CV_STEP = 10
 	const PRINT_STEP = 100

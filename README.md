@@ -7,7 +7,7 @@ An alternative implementation of EuroPi in Go, using TinyGo for embedded systems
 To run the examples, you can use the following command:
 
 ```bash
-`tinygo flash -target=pico --monitor ./cmd/production`
+`tinygo flash -target=pico --monitor ./cmd/pico`
 ```
 
 To run the mock version, which simulates the EuroPi hardware without needing the actual device, use:

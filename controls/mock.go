@@ -1,7 +1,7 @@
 //go:build !tinygo
 
 // Mock implementations (pure Go, no hardware deps)
-package hw
+package controls
 
 import "europi/display"
 
@@ -55,8 +55,8 @@ func (m *MockCV) On()          { m.on = true }
 func (m *MockCV) Off()         { m.off = true }
 
 // SetupEuroPiMock returns an IO struct with all fields set to mocks
-func SetupEuroPiMock() *IO {
-	return &IO{
+func SetupEuroPi() *Controls {
+	return &Controls{
 		K1:      &MockKnob{},
 		K2:      &MockKnob{},
 		B1:      &MockButton{},

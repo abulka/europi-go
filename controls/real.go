@@ -1,7 +1,7 @@
 //go:build tinygo
 
 // Real hardware implementations (TinyGo only)
-package hw
+package controls
 
 import (
 	"europi/display"
@@ -140,9 +140,10 @@ func ConfigureCV() {
 }
 
 // SetupEuroPi initializes all real hardware IO
-func SetupEuroPi() *IO {
+func SetupEuroPi() *Controls {
 	machine.InitADC()
-	io := &IO{
+	ConfigureCV()
+	return &Controls{
 		K1:      NewKnob(machine.ADC1),
 		K2:      NewKnob(machine.ADC2),
 		B1:      NewButton(machine.GPIO4),
@@ -157,6 +158,4 @@ func SetupEuroPi() *IO {
 		CV6:     &CV{Index: 6},
 		Display: display.InitDisplay(),
 	}
-	ConfigureCV()
-	return io
 }

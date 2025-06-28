@@ -2,7 +2,7 @@
 package app
 
 import (
-	"europi/hw"
+	hw "europi/controls"
 	"time"
 )
 
@@ -10,7 +10,7 @@ type HelloWorld struct{}
 
 func (c HelloWorld) Name() string { return "Hello World" }
 
-func (c HelloWorld) Run(io *hw.IO) {
+func (c HelloWorld) Run(io *hw.Controls) {
 	println("Hello, World!")
 	io.Display.ClearDisplay()
 	io.Display.WriteLine(0, 10, "Hello, World!")

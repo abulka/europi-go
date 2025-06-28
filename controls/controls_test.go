@@ -1,5 +1,5 @@
 // Unit tests for IO logic/mocks
-package hw
+package controls
 
 import "testing"
 
