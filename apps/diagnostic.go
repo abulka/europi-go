@@ -1,6 +1,3 @@
-//go:build !tinygo
-// +build !tinygo
-
 // Diagnostic app
 package apps
 
