@@ -58,7 +58,7 @@ func NewOledDevice8x8() IOledDevice {
 	// Return the adapter with the buffered display
 	// This allows for change detection and efficient updates
 	// The adapter will use the buffered display for all operations
-	return &SSD1306Adapter8x8{dev: dev}
+	return &SSD1306Adapter8x8{dev: dev, oledbuf: oledbuf}
 }
 
 // Font8x8 is the MicroPython petme128 8x8 font converted for TinyGo

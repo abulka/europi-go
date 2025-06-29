@@ -24,7 +24,7 @@ func splashScreen(io *hw.Controls) {
 func main() {
 	time.Sleep(1 * time.Second)
 	println("Starting...")
-	const tinyFont = true
+	const tinyFont = false
 	var oled display.IOledDevice
 	if tinyFont {
 		println("Using TinyFont for OLED display.")
