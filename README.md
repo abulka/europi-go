@@ -1,14 +1,27 @@
 # EuroPi-Go
 
-An alternative implementation of EuroPi in Go, using TinyGo for embedded systems.
+An alternative implementation of a EuroPi firmware in Go, using TinyGo for embedded systems.
+
+# Installation
+To get started with EuroPi-Go, you need to install [TinyGo](https://tinygo.org/getting-started/).
+
+Download this repository and navigate to the project directory and run `go mod tidy` to ensure all dependencies are installed.
 
 # Run
 
-To run the examples, you can use the following command:
+To flash the firmware and apps to the EuroPi, you can use the following command:
 
 ```bash
 `tinygo flash -target=pico --monitor ./cmd/pico`
 ```
+
+Or just build the firmware without flashing:
+
+```bash
+tinygo build -target=pico ./cmd/pico
+```
+
+## Mock Version
 
 To run the mock version, which simulates the EuroPi hardware without needing the actual device, use:
 

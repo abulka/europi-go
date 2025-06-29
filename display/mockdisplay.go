@@ -75,3 +75,7 @@ func makeSpaces(n int) string {
 	}
 	return string(bytes.Repeat([]byte{' '}, n))
 }
+
+func NewMockOledDevice() *MockOledDevice {
+	return &MockOledDevice{}
+}

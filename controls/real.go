@@ -139,8 +139,8 @@ func ConfigureCV() {
 	}
 }
 
-// SetupEuroPi initializes all real hardware IO
-func SetupEuroPi() *Controls {
+// Initializes all real hardware IO
+func SetupEuroPiWithDisplay(display display.IOledDevice) *Controls {
 	machine.InitADC()
 	ConfigureCV()
 	return &Controls{
@@ -156,6 +156,6 @@ func SetupEuroPi() *Controls {
 		CV4:     &CV{Index: 4},
 		CV5:     &CV{Index: 5},
 		CV6:     &CV{Index: 6},
-		Display: display.InitDisplay(),
+		Display: display,
 	}
 }

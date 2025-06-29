@@ -30,7 +30,7 @@ func (o *SSD1306Adapter) WriteLine(x, y int16, text string) {
 }
 
 // InitDisplay sets up the I2C and SSD1306 display and returns the display instance.
-func InitDisplay() IOledDevice {
+func NewOledDeviceTinyFont() IOledDevice {
 	i2c := machine.I2C0
 	i2c.Configure(machine.I2CConfig{
 		Frequency: 400000,

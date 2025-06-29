@@ -54,27 +54,8 @@ func (m *MockCV) Set(v uint32) { m.val = v }
 func (m *MockCV) On()          { m.on = true }
 func (m *MockCV) Off()         { m.off = true }
 
-// SetupEuroPiMock returns an IO struct with all fields set to mocks
-func SetupEuroPi() *Controls {
-	return &Controls{
-		K1:      &MockKnob{},
-		K2:      &MockKnob{},
-		B1:      &MockButton{},
-		B2:      &MockButton{},
-		DIN:     &MockDigitalInput{},
-		AIN:     &MockAnalogueInput{},
-		CV1:     &MockCV{},
-		CV2:     &MockCV{},
-		CV3:     &MockCV{},
-		CV4:     &MockCV{},
-		CV5:     &MockCV{},
-		CV6:     &MockCV{},
-		Display: &display.MockOledDevice{}, // Added mock display
-	}
-}
-
 // SetupEuroPiWithDisplay returns a Controls struct with all fields set to mocks, using the provided display
-func SetupEuroPiWithDisplay(display display.IOledDevice) *Controls {
+func SetupMockEuroPiWithDisplay(display display.IOledDevice) *Controls {
 	return &Controls{
 		K1:      &MockKnob{},
 		K2:      &MockKnob{},

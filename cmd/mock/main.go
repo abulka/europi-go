@@ -50,10 +50,10 @@ func main() {
 	if *tea {
 		oled = display.NewMockOledDeviceTea()
 	} else {
-		oled = &display.MockOledDevice{}
+		oled = display.NewMockOledDevice()
 	}
-	iox := hw.SetupEuroPiWithDisplay(oled)
-	logutil.Println("EuroPi configured (production mode).")
+	iox := hw.SetupMockEuroPiWithDisplay(oled)
+	logutil.Println("EuroPi configured (MOCK 😆 mode).")
 
 	// Register apps
 	firmware.RegisterApp(apps.Diagnostic{})

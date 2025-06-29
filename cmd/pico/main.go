@@ -5,6 +5,7 @@ package main
 import (
 	hw "europi/controls"
 	"europi/firmware"
+	"europi/display"
 	"europi/apps"
 	"time"
 )
@@ -23,8 +24,16 @@ func splashScreen(io *hw.Controls) {
 func main() {
 	time.Sleep(1 * time.Second)
 	println("Starting...")
-
-	iox := hw.SetupEuroPi()
+	const tinyFont = true
+	var oled display.IOledDevice
+	if tinyFont {
+		println("Using TinyFont for OLED display.")
+		oled = display.NewOledDeviceTinyFont()
+	} else {
+		println("Using 8x8 font for OLED display.")
+		oled = display.NewOledDevice8x8()
+	}
+	iox := hw.SetupEuroPiWithDisplay(oled)
 	println("EuroPi configured (production mode).")
 
 	// Register apps
