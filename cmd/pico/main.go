@@ -16,7 +16,7 @@ import (
 func main() {
 	time.Sleep(1 * time.Second)
 	println("Starting...")
-	const tinyFont = false
+	const tinyFont = true
 	var oled display.IOledDevice
 	if tinyFont {
 		println("Using TinyFont for OLED display.")
