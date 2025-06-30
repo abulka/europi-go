@@ -1,6 +1,10 @@
 //go:build !tinygo
 
+// Run with go run ./cmd/mock
+// Run with go run ./cmd/mock -tea
+
 package main
+
 
 import (
 	"europi/apps"
@@ -8,36 +12,12 @@ import (
 	"europi/display"
 	"europi/firmware"
 	"europi/logutil"
+	"europi/mock"
 	"flag"
 	"time"
 )
 
-const version = "v0.01"
-
 var tea = flag.Bool("tea", false, "use Bubble Tea OLED simulation")
-
-func splashScreen(io *hw.Controls) {
-	io.Display.ClearDisplay()
-	io.Display.WriteLine(0, 10, "EuroPi Simplified")
-	io.Display.WriteLine(0, 20, "by TinyGo "+version)
-	io.Display.Display()
-	time.Sleep(2 * time.Second)
-	io.Display.ClearDisplay()
-}
-
-// Helper functions for mock input, since SetValue and SetPressed do not exist on the IKnob and IButton interfaces.
-// But they do exist on the mock implementations used in tests.
-func SetKnobValue(knob hw.IKnob, v int) {
-	if mock, ok := knob.(interface{ SetValue(int) }); ok {
-		mock.SetValue(v)
-	}
-}
-
-func SetButtonPressed(btn hw.IButton, pressed bool) {
-	if mock, ok := btn.(interface{ SetPressed(bool) }); ok {
-		mock.SetPressed(pressed)
-	}
-}
 
 func main() {
 	flag.Parse()
@@ -53,50 +33,72 @@ func main() {
 		oled = display.NewMockOledDevice()
 	}
 	iox := hw.SetupMockEuroPiWithDisplay(oled)
-	logutil.Println("EuroPi configured (MOCK 😆 mode).")
+	if *tea {
+		const msg = "EuroPi configured (MOCK TEA ☕️ mode)."
+		println(msg)
+		logutil.Println(msg)
+	} else {
+		logutil.Println("EuroPi configured (MOCK 😆 mode).")
+	}
 
 	// Register apps
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
+	firmware.RegisterApp(apps.Font8x8{})
 
-	splashScreen(iox)
+	firmware.SplashScreen(iox)
 	logutil.Println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
 
 	// Simulate user input
 	go func() {
-		time.Sleep(1 * time.Second)
-		SetKnobValue(iox.K2, 5)
-		time.Sleep(300 * time.Millisecond)
-		SetKnobValue(iox.K2, 10)
-		time.Sleep(300 * time.Millisecond)
-		SetKnobValue(iox.K2, 0)
-		time.Sleep(300 * time.Millisecond)
+		// Currently the mock menu logic is event-driven, not value-mapped. You
+		// must simulate knob "turns" (value changes), not just set a high value
+		// once. Also, the menu logic only increments the selection if the knob
+		// value changes by more than 2 compared to the last value.
+
+		// time.Sleep(1 * time.Second)
+		// mock.SetKnobValue(iox.K2, 5)
+		// time.Sleep(300 * time.Millisecond)
+		// mock.SetKnobValue(iox.K2, 0)
+		// time.Sleep(3000 * time.Millisecond)
+
+		// // Simulate pressing B2 to select an app
+		// mock.SetButtonPressed(iox.B2, true)
+		// time.Sleep(200 * time.Millisecond)
+		// mock.SetButtonPressed(iox.B2, false)
+
+		// // Allow diagnostic app to run for a while
+		// time.Sleep(1 * time.Second)
+
+		// mock.ExitToMainMenu(iox)
+
+		// // Simulate scrolling to different app and selecting it
+		// mock.SetKnobValue(iox.K2, 10)
+		// time.Sleep(200 * time.Millisecond)
+		// mock.SetButtonPressed(iox.B2, true)
+		// time.Sleep(200 * time.Millisecond)
+		// mock.SetButtonPressed(iox.B2, false)
+
+		// // Allow other app to run for a while
+		// time.Sleep(2 * time.Second)
+
+		// mock.ExitToMainMenu(iox)
+
+		// Select the Font8x8 app
+		mock.SetKnobValue(iox.K2, 0)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetKnobValue(iox.K2, 5)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetKnobValue(iox.K2, 10)
+		time.Sleep(1000 * time.Millisecond)
 
 		// Simulate pressing B2 to select an app
-		SetButtonPressed(iox.B2, true)
+		mock.SetButtonPressed(iox.B2, true)
 		time.Sleep(200 * time.Millisecond)
-		SetButtonPressed(iox.B2, false)
+		mock.SetButtonPressed(iox.B2, false)
 
-		// Allow diagnostic app to run for a while
-		time.Sleep(1 * time.Second)
-
-		// Exit the app after 5 seconds by pressing B1 and B2 simultaneously
-		SetButtonPressed(iox.B1, true)
-		SetButtonPressed(iox.B2, true)
-		time.Sleep(3 * time.Second) // Simulate holding both buttons for > 2 seconds to exit
-		SetButtonPressed(iox.B1, false)
-		SetButtonPressed(iox.B2, false)
-		time.Sleep(2 * time.Second) // Wait for splash screen to clear
-
-		// Simulate scrolling to different app and selecting it
-		SetKnobValue(iox.K2, 10)
-		time.Sleep(200 * time.Millisecond)
-		SetButtonPressed(iox.B2, true)
-		time.Sleep(200 * time.Millisecond)
-		SetButtonPressed(iox.B2, false)
-
-		// Allow other app to run for a while
-		time.Sleep(2 * time.Second)
+		// Allow Font8x8 app to run for a while
+		time.Sleep(3 * time.Second)
 
 		logutil.Println("Mock input simulation completed.")
 	}()
@@ -109,6 +111,6 @@ func main() {
 		logutil.Println("Launching app:", firmware.GetAppName(idx))
 		firmware.RunApp(idx, iox)
 		logutil.Println(firmware.GetAppName(idx), "completed. Returning to menu...")
-		splashScreen(iox)
+		firmware.SplashScreen(iox)
 	}
 }

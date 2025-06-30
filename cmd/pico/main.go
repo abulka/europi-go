@@ -1,5 +1,8 @@
 //go:build tinygo
 
+// tinygo build -target=pico ./cmd/pico
+// tinygo flash -target=pico --monitor ./cmd/pico
+
 package main
 
 import (
@@ -9,17 +12,6 @@ import (
 	"europi/apps"
 	"time"
 )
-
-const version = "v0.01"
-
-func splashScreen(io *hw.Controls) {
-	io.Display.ClearDisplay()
-	io.Display.WriteLine(0, 10, "EuroPi Simplified")
-	io.Display.WriteLine(0, 20, "by TinyGo "+version)
-	io.Display.Display()
-	time.Sleep(2 * time.Second)
-	io.Display.ClearDisplay()
-}
 
 func main() {
 	time.Sleep(1 * time.Second)
@@ -39,8 +31,9 @@ func main() {
 	// Register apps
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
+	firmware.RegisterApp(apps.Font8x8{})
 
-	splashScreen(iox)
+	firmware.SplashScreen(iox)
 	println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
 
 	for {
@@ -52,6 +45,6 @@ func main() {
 		println("Launching app:", firmware.GetAppName(idx))
 		firmware.RunApp(idx, iox)
 		println(firmware.GetAppName(idx), "completed. Returning to menu...")
-		splashScreen(iox)
+		firmware.SplashScreen(iox)
 	}
 }

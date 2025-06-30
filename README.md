@@ -12,7 +12,7 @@ Download this repository and navigate to the project directory and run `go mod t
 To flash the firmware and apps to the EuroPi, you can use the following command:
 
 ```bash
-`tinygo flash -target=pico --monitor ./cmd/pico`
+tinygo flash -target=pico --monitor ./cmd/pico
 ```
 
 Or just build the firmware without flashing:
@@ -32,7 +32,7 @@ go run ./cmd/mock
 For fancy bubbletea mock UI, you can run:
 
 ```bash
-go run -tags tea ./cmd/mock -tea
+go run ./cmd/mock -tea
 ```
 
 Note all logging will be logged to file `mock.log` in the project root directory.

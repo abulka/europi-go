@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const version = "v0.01"
+
 type App interface {
 	Name() string
 	Run(io *hw.Controls)
@@ -47,4 +49,13 @@ func ShouldExit(io *hw.Controls) bool {
 		doubleButtonPressLastMs = 0
 	}
 	return false
+}
+
+func SplashScreen(io *hw.Controls) {
+	io.Display.ClearDisplay()
+	io.Display.WriteLine(0, 10, "EuroPi Simplified")
+	io.Display.WriteLine(0, 20, "by TinyGo "+version)
+	io.Display.Display()
+	time.Sleep(2 * time.Second)
+	io.Display.ClearDisplay()
 }
