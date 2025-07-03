@@ -6,17 +6,16 @@
 package main
 
 import (
-	hw "europi/controls"
-	"europi/firmware"
-	"europi/display"
 	"europi/apps"
+	hw "europi/controls"
+	"europi/display"
+	"europi/firmware"
 	"time"
 )
 
 func main() {
 	time.Sleep(1 * time.Second)
 	println("Starting...")
-	const tinyFont = true
 	var oled display.IOledDevice
 	if tinyFont {
 		println("Using TinyFont for OLED display.")

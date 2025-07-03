@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "TinyGo Build (Pico)",
+			"command": "tinygo",
+			"args": [
+				"build",
+				"-target=pico",
+				"./cmd/pico"
+			],
+			"group": "build"
+		},
+		{
+			"type": "shell",
+			"label": "TinyGo Build (Pico, TinyFont)",
+			"command": "tinygo",
+			"args": [
+				"build",
+				"-tags",
+				"tinyfont",
+				"-target=pico",
+				"./cmd/pico"
+			],
+			"group": "build"
+		}
+	]
+}

@@ -1,6 +1,8 @@
 // IO struct and interfaces (IKnob, IButton, etc.)
 package controls
 
+import "europi/display"
+
 // IKnob interface
 // Returns the current value of the knob
 // Implemented by both real and mock knobs
@@ -27,12 +29,6 @@ type ICV interface {
 	Off()
 }
 
-type IOledDevice interface {
-	ClearDisplay()
-	Display()
-	WriteLine(x, y int16, text string)
-}
-
 // Controls struct holds all hardware/mocked Controls for EuroPi
 // This is used by both production and mock entry points
 type Controls struct {
@@ -43,5 +39,5 @@ type Controls struct {
 	AIN    IAnalogueInput
 	// Outputs
 	CV1, CV2, CV3, CV4, CV5, CV6 ICV
-	Display                      IOledDevice
+	Display                      display.IOledDevice
 }

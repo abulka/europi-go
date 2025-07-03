@@ -9,4 +9,6 @@ type IOledDevice interface {
 	Display()
 	// WriteLine writes a line of text to the display at the specified coordinates.
 	WriteLine(x, y int16, text string)
+	// HighlightLn highlights the given line number (or -1 for none)
+	HighlightLn(lineNum int)
 }

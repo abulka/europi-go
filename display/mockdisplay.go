@@ -6,9 +6,19 @@ package display
 import "bytes"
 
 type MockOledDevice struct {
-	Lines     [3]string // 3 lines for y=10,20,30
-	Cleared   bool
-	Displayed bool
+	Lines       [3]string // 3 lines for y=10,20,30
+	Cleared     bool
+	Displayed   bool
+	LineLen     int // max chars per line (16 for 8x8, 21 for TinyFont)
+	highlighted int // -1 for none
+}
+
+func NewMockOledDeviceWithFont(tinyFont bool) *MockOledDevice {
+	lineLen := 16
+	if tinyFont {
+		lineLen = 21
+	}
+	return &MockOledDevice{LineLen: lineLen}
 }
 
 func (m *MockOledDevice) ClearDisplay() {
@@ -41,6 +51,10 @@ func (m *MockOledDevice) WriteLine(x, y int16, text string) {
 	if len(line) < start {
 		line += makeSpaces(start - len(line))
 	}
+	// Truncate text to max line length
+	if len(text) > m.LineLen {
+		text = text[:m.LineLen]
+	}
 	// Insert/replace text at position
 	if start+len(text) > len(line) {
 		line = line[:start] + text
@@ -56,7 +70,11 @@ func (m *MockOledDevice) Display() {
 	top := "┌" + string(bytes.Repeat([]byte("─"), width)) + "┐"
 	bottom := "└" + string(bytes.Repeat([]byte("─"), width)) + "┘"
 	println(top)
-	for _, line := range m.Lines {
+	for i, line := range m.Lines {
+		if i == m.highlighted && m.highlighted >= 0 {
+			// Append highlight symbol to highlighted line
+			line += " *"
+		}
 		println("│" + padOrTruncate(line, width) + "│")
 	}
 	println(bottom)
@@ -78,4 +96,8 @@ func makeSpaces(n int) string {
 
 func NewMockOledDevice() *MockOledDevice {
 	return &MockOledDevice{}
+}
+
+func (m *MockOledDevice) HighlightLn(lineNum int) {
+	m.highlighted = lineNum
 }

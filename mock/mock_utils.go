@@ -19,6 +19,18 @@ func SetButtonPressed(btn hw.IButton, pressed bool) {
 	}
 }
 
+func SetDigitalInputValue(din hw.IDigitalInput, value bool) {
+	if mock, ok := din.(interface{ SetValue(bool) }); ok {
+		mock.SetValue(value)
+	}
+}
+
+func SetAnalogueInputValue(ain hw.IAnalogueInput, volts float64) {
+	if mock, ok := ain.(interface{ SetVolts(float64) }); ok {
+		mock.SetVolts(volts)
+	}
+}
+
 func ExitToMainMenu(iox *hw.Controls) {
 	// Exit the app after 5 seconds by pressing B1 and B2 simultaneously
 	SetButtonPressed(iox.B1, true)

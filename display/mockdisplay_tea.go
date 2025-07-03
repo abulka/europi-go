@@ -9,13 +9,28 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const HighlightSymbol = " *"
+
 type MockOledDeviceTea struct {
-	lines   [3]string
-	program *tea.Program
+	lines       [3]string
+	program     *tea.Program
+	LineLen     int // max chars per line (16 for 8x8, 21 for TinyFont)
+	highlighted int // -1 for none
 }
 
 func NewMockOledDeviceTea() *MockOledDeviceTea {
-	m := &MockOledDeviceTea{}
+	m := &MockOledDeviceTea{LineLen: 16}
+	m.program = tea.NewProgram(&oledModel{lines: m.lines})
+	go func() { _, _ = m.program.Run() }()
+	return m
+}
+
+func NewMockOledDeviceTeaWithFont(tinyFont bool) *MockOledDeviceTea {
+	lineLen := 16
+	if tinyFont {
+		lineLen = 21
+	}
+	m := &MockOledDeviceTea{LineLen: lineLen}
 	m.program = tea.NewProgram(&oledModel{lines: m.lines})
 	go func() { _, _ = m.program.Run() }()
 	return m
@@ -23,6 +38,7 @@ func NewMockOledDeviceTea() *MockOledDeviceTea {
 
 func (m *MockOledDeviceTea) ClearDisplay() {
 	m.lines = [3]string{"", "", ""}
+	m.highlighted = -1
 	m.update()
 }
 
@@ -46,6 +62,10 @@ func (m *MockOledDeviceTea) WriteLine(x, y int16, text string) {
 	if len(line) < start {
 		line += makeSpacesTea(start - len(line))
 	}
+	// Truncate text to max line length
+	if len(text) > m.LineLen {
+		text = text[:m.LineLen]
+	}
 	if start+len(text) > len(line) {
 		line = line[:start] + text
 	} else {
@@ -68,18 +88,24 @@ func (m *MockOledDeviceTea) Display() {
 	logutil.Println(bottom)
 }
 
+func (m *MockOledDeviceTea) HighlightLn(lineNum int) {
+	m.highlighted = lineNum
+}
+
 func (m *MockOledDeviceTea) update() {
 	if m.program != nil {
-		m.program.Send(updateMsg{lines: m.lines})
+		m.program.Send(updateMsg{lines: m.lines, highlighted: m.highlighted})
 	}
 }
 
 type updateMsg struct {
-	lines [3]string
+	lines       [3]string
+	highlighted int
 }
 
 type oledModel struct {
-	lines [3]string
+	lines       [3]string
+	highlighted int
 }
 
 func (m *oledModel) Init() tea.Cmd {
@@ -94,8 +120,13 @@ func (m *oledModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case updateMsg:
 		m.lines = msg.lines
+		m.highlighted = msg.highlighted
 	}
 	return m, nil
+}
+
+func (m *oledModel) Highlighted() int {
+	return m.highlighted
 }
 
 func (m *oledModel) View() string {
@@ -105,8 +136,12 @@ func (m *oledModel) View() string {
 	bottom := "└" + string(bytes.Repeat([]byte("─"), width)) + "┘"
 	var b bytes.Buffer
 	b.WriteString(top + "\n")
-	for _, line := range m.lines {
-		b.WriteString("│" + padOrTruncateTea(line, width) + "│\n")
+	for i, line := range m.lines {
+		toShow := line
+		if m.highlighted == i && m.highlighted >= 0 && len(line) > 0 {
+			toShow = line + HighlightSymbol
+		}
+		b.WriteString("│" + padOrTruncateTea(toShow, width) + "│\n")
 	}
 	b.WriteString(bottom)
 	return b.String()
@@ -117,13 +152,6 @@ func makeSpacesTea(n int) string {
 		return ""
 	}
 	return string(bytes.Repeat([]byte{' '}, n))
-}
-
-func padRightTea(s string, n int) string {
-	if len(s) < n {
-		return s + string(bytes.Repeat([]byte{' '}, n-len(s)))
-	}
-	return s
 }
 
 func padOrTruncateTea(s string, n int) string {

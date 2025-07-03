@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -20,7 +21,25 @@ func Println(v ...interface{}) {
 	if teaMode {
 		once.Do(func() {
 			var err error
-			logFile, err = os.OpenFile("mock.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+			// Robust: always write mock.log to project root
+			cwd, err := os.Getwd()
+			if err != nil {
+				panic(err)
+			}
+			// Look for the project root by walking up until go.mod is found
+			root := cwd
+			for {
+				if _, err := os.Stat(filepath.Join(root, "go.mod")); err == nil {
+					break
+				}
+				parent := filepath.Dir(root)
+				if parent == root {
+					panic("project root (go.mod) not found")
+				}
+				root = parent
+			}
+			logPath := filepath.Join(root, "mock.log")
+			logFile, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 			if err != nil {
 				panic(err)
 			}

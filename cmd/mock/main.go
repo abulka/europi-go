@@ -5,7 +5,6 @@
 
 package main
 
-
 import (
 	"europi/apps"
 	hw "europi/controls"
@@ -18,6 +17,7 @@ import (
 )
 
 var tea = flag.Bool("tea", false, "use Bubble Tea OLED simulation")
+var tinyFont = flag.Bool("tinyfont", false, "simulate TinyFont mode (21 chars per line)")
 
 func main() {
 	flag.Parse()
@@ -28,9 +28,10 @@ func main() {
 
 	var oled display.IOledDevice
 	if *tea {
-		oled = display.NewMockOledDeviceTea()
+		oled = display.NewMockOledDeviceTeaWithFont(*tinyFont)
 	} else {
-		oled = display.NewMockOledDevice()
+		base := display.NewMockOledDeviceWithFont(*tinyFont)
+		oled = display.NewBufferedOledDevice(base, 3, 10, 10)
 	}
 	iox := hw.SetupMockEuroPiWithDisplay(oled)
 	if *tea {
@@ -56,33 +57,51 @@ func main() {
 		// once. Also, the menu logic only increments the selection if the knob
 		// value changes by more than 2 compared to the last value.
 
-		// time.Sleep(1 * time.Second)
-		// mock.SetKnobValue(iox.K2, 5)
-		// time.Sleep(300 * time.Millisecond)
-		// mock.SetKnobValue(iox.K2, 0)
-		// time.Sleep(3000 * time.Millisecond)
+		time.Sleep(1 * time.Second)
+		mock.SetKnobValue(iox.K2, 5)
+		time.Sleep(300 * time.Millisecond)
+		mock.SetKnobValue(iox.K2, 0)
+		time.Sleep(300 * time.Millisecond)
 
-		// // Simulate pressing B2 to select an app
-		// mock.SetButtonPressed(iox.B2, true)
-		// time.Sleep(200 * time.Millisecond)
-		// mock.SetButtonPressed(iox.B2, false)
+		// Simulate pressing B2 to select an app
+		mock.SetButtonPressed(iox.B2, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, false)
 
-		// // Allow diagnostic app to run for a while
-		// time.Sleep(1 * time.Second)
+		// Allow diagnostic app to run for a while - fiddle with some knobs
+		// to simulate user interaction
+		mock.SetKnobValue(iox.K2, 10)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, false)
+		time.Sleep(200 * time.Millisecond)
+		// simulat AIN
+		mock.SetAnalogueInputValue(iox.AIN, 2.5)
+		time.Sleep(200 * time.Millisecond)
+		// simulat DIN
+		mock.SetDigitalInputValue(iox.DIN, true)
+		time.Sleep(600 * time.Millisecond)
+		mock.SetDigitalInputValue(iox.DIN, false)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetKnobValue(iox.K2, 0)
+		time.Sleep(200 * time.Millisecond)
 
-		// mock.ExitToMainMenu(iox)
 
-		// // Simulate scrolling to different app and selecting it
-		// mock.SetKnobValue(iox.K2, 10)
-		// time.Sleep(200 * time.Millisecond)
-		// mock.SetButtonPressed(iox.B2, true)
-		// time.Sleep(200 * time.Millisecond)
-		// mock.SetButtonPressed(iox.B2, false)
 
-		// // Allow other app to run for a while
-		// time.Sleep(2 * time.Second)
+		mock.ExitToMainMenu(iox)
 
-		// mock.ExitToMainMenu(iox)
+		// Simulate scrolling to different app and selecting it
+		mock.SetKnobValue(iox.K2, 10)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, false)
+
+		// Allow other app to run for a while
+		time.Sleep(2 * time.Second)
+
+		mock.ExitToMainMenu(iox)
 
 		// Select the Font8x8 app
 		mock.SetKnobValue(iox.K2, 0)

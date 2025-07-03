@@ -12,26 +12,29 @@ import (
 )
 
 type SSD1306Adapter8x8 struct {
-	dev     ssd1306.Device
-	oledbuf *OledBuffer // Use a buffered display for change detection
+	dev         ssd1306.Device
+	highlighted int // -1 for none
 }
 
 func (o *SSD1306Adapter8x8) ClearDisplay() {
-	o.oledbuf.Clear()
+	o.dev.ClearDisplay()
 }
 
 func (o *SSD1306Adapter8x8) Display() {
-	o.oledbuf.Display()
+	o.dev.Display()
 }
 
 func (o *SSD1306Adapter8x8) WriteLine(x, y int16, text string) {
-	// tinyfont.WriteLine(&o.dev, &proggy.TinySZ8pt7b, x, y, text, color.RGBA{255, 255, 255, 255})
-	o.oledbuf.Writeln(int(y/8), text)
+	if int(y/8) == o.highlighted {
+		// Highlight this line (reverse video)
+		HighlightLine(o.dev, x, y, text, 1, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
+	} else {
+		WriteLine(o.dev, x, y, text, color.RGBA{255, 255, 255, 255})
+	}
 }
 
 func (o *SSD1306Adapter8x8) HighlightLn(lineNum int) {
-	// TODO this should be added to the official display.IOledDevice API
-	o.oledbuf.HighlightLn(lineNum)
+	o.highlighted = lineNum
 }
 
 // Exported and fixed function declaration for NewOledDevice8x8
@@ -48,17 +51,7 @@ func NewOledDevice8x8() IOledDevice {
 		Width:   128,
 		Height:  32,
 	})
-	oledbuf := NewBufferedOled(dev, 4, 0, 8) // 4 lines, starting at Y=0, line height of 8 pixels
-	// Initialize the buffer with empty lines
-	for i := 0; i < 4; i++ {
-		oledbuf.Writeln(i, "")
-	}
-	// Set the initial highlight to -1 (no highlight)
-	oledbuf.HighlightLn(-1)
-	// Return the adapter with the buffered display
-	// This allows for change detection and efficient updates
-	// The adapter will use the buffered display for all operations
-	return &SSD1306Adapter8x8{dev: dev, oledbuf: oledbuf}
+	return &SSD1306Adapter8x8{dev: dev, highlighted: -1}
 }
 
 // Font8x8 is the MicroPython petme128 8x8 font converted for TinyGo
@@ -239,99 +232,4 @@ func HighlightLine(display ssd1306.Device, x, y int16, text string, margin int16
 
 	display.FillRectangle(rectX, rectY, rectW, rectH, bg)
 	WriteLine(display, x, y, text, fg)
-}
-
-// OledBuffer manages a buffered display with change detection
-type OledBuffer struct {
-	display       ssd1306.Device // Store as non-pointer type
-	lines         []string       // Current lines in buffer
-	prevLines     []string       // Previous lines (for change detection)
-	highlighted   int            // Currently highlighted line (-1 for none)
-	lineHeight    int16          // Vertical spacing between lines
-	startY        int16          // Starting Y coordinate for first line
-	prevHighlight int            // Track previous highlight state
-}
-
-// NewBufferedOled creates a new buffered OLED writer
-func NewBufferedOled(display ssd1306.Device, lineCount int, startY, lineHeight int16) *OledBuffer {
-	return &OledBuffer{
-		display:       display,
-		lines:         make([]string, lineCount),
-		prevLines:     make([]string, lineCount),
-		highlighted:   -1,
-		prevHighlight: -1,
-		lineHeight:    lineHeight,
-		startY:        startY,
-	}
-}
-
-// Clear clears the display and resets the buffer
-func (b *OledBuffer) Clear() {
-	for i := range b.lines {
-		b.lines[i] = ""
-	}
-	b.highlighted = -1
-	b.prevHighlight = -1
-	b.display.ClearDisplay()
-	b.display.Display()
-	b.prevLines = make([]string, len(b.lines)) // Reset previous state
-}
-
-// Writeln writes a line to the buffer (doesn't display immediately)
-func (b *OledBuffer) Writeln(lineNum int, text string) {
-	if lineNum >= 0 && lineNum < len(b.lines) {
-		b.lines[lineNum] = text
-	}
-}
-
-// HighlightLn sets which line should be highlighted (-1 for none)
-func (b *OledBuffer) HighlightLn(lineNum int) {
-	if lineNum >= -1 && lineNum < len(b.lines) {
-		b.highlighted = lineNum
-	}
-}
-
-// hasChanges checks if the display needs updating
-func (b *OledBuffer) hasChanges() bool {
-	// Check if any lines changed
-	for i := range b.lines {
-		if b.lines[i] != b.prevLines[i] {
-			return true
-		}
-	}
-
-	// Check if highlight changed
-	if b.highlighted != b.prevHighlight {
-		return true
-	}
-
-	return false
-}
-
-// Display updates the display if anything has changed
-func (b *OledBuffer) Display() {
-	if !b.hasChanges() {
-		return
-	}
-
-	b.display.ClearDisplay()
-
-	for i := 0; i < len(b.lines); i++ {
-		y := b.startY + int16(i)*b.lineHeight
-		if b.lines[i] != "" {
-			if i == b.highlighted {
-				// Highlight the line (white background, black text)
-				HighlightLine(b.display, 0, y, b.lines[i], 1, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
-			} else {
-				// Normal line (black background, white text)
-				WriteLine(b.display, 0, y, b.lines[i], color.RGBA{255, 255, 255, 255})
-			}
-		}
-	}
-
-	b.display.Display()
-
-	// Update previous state
-	copy(b.prevLines, b.lines)
-	b.prevHighlight = b.highlighted
 }
