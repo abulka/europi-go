@@ -15,7 +15,7 @@ func (c HelloWorld) Name() string { return "Hello World" }
 func (c HelloWorld) Run(io *hw.Controls) {
 	logutil.Println("Hello, World!")
 	io.Display.ClearDisplay()
-	io.Display.WriteLine(0, 10, "Hello, World!")
+	io.Display.WriteLine(0, "Hello, World!")
 	io.Display.Display()
 
 	for {

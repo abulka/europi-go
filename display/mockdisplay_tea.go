@@ -42,36 +42,15 @@ func (m *MockOledDeviceTea) ClearDisplay() {
 	m.update()
 }
 
-func (m *MockOledDeviceTea) WriteLine(x, y int16, text string) {
-	var idx int
-	switch y {
-	case 10:
-		idx = 0
-	case 20:
-		idx = 1
-	case 30:
-		idx = 2
-	default:
-		return
-	}
-	start := 0
-	if x >= 75 {
-		start = 12
-	}
-	line := m.lines[idx]
-	if len(line) < start {
-		line += makeSpacesTea(start - len(line))
+func (m *MockOledDeviceTea) WriteLine(lineNum int, text string) {
+	if lineNum < 0 || lineNum >= len(m.lines) {
+		return // ignore out of range
 	}
 	// Truncate text to max line length
 	if len(text) > m.LineLen {
 		text = text[:m.LineLen]
 	}
-	if start+len(text) > len(line) {
-		line = line[:start] + text
-	} else {
-		line = line[:start] + text + line[start+len(text):]
-	}
-	m.lines[idx] = line
+	m.lines[lineNum] = text
 	m.update()
 }
 

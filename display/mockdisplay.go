@@ -6,7 +6,7 @@ package display
 import "bytes"
 
 type MockOledDevice struct {
-	Lines       [3]string // 3 lines for y=10,20,30
+	Lines       [3]string
 	Cleared     bool
 	Displayed   bool
 	LineLen     int // max chars per line (16 for 8x8, 21 for TinyFont)
@@ -28,40 +28,15 @@ func (m *MockOledDevice) ClearDisplay() {
 	}
 }
 
-func (m *MockOledDevice) WriteLine(x, y int16, text string) {
-	// Map y to line index: y=10 -> 0, y=20 -> 1, y=30 -> 2
-	var idx int
-	switch y {
-	case 10:
-		idx = 0
-	case 20:
-		idx = 1
-	case 30:
-		idx = 2
-	default:
-		return // ignore lines not mapped
-	}
-	// x=0 is start of line, x=75 is about 12 chars in
-	start := 0
-	if x >= 75 {
-		start = 12
-	}
-	// Pad line if needed
-	line := m.Lines[idx]
-	if len(line) < start {
-		line += makeSpaces(start - len(line))
+func (m *MockOledDevice) WriteLine(lineNum int, text string) {
+	if lineNum < 0 || lineNum >= len(m.Lines) {
+		return // ignore out of range
 	}
 	// Truncate text to max line length
 	if len(text) > m.LineLen {
 		text = text[:m.LineLen]
 	}
-	// Insert/replace text at position
-	if start+len(text) > len(line) {
-		line = line[:start] + text
-	} else {
-		line = line[:start] + text + line[start+len(text):]
-	}
-	m.Lines[idx] = line
+	m.Lines[lineNum] = text
 }
 
 func (m *MockOledDevice) Display() {
@@ -85,13 +60,6 @@ func padOrTruncate(s string, n int) string {
 		return s[:n]
 	}
 	return s + string(bytes.Repeat([]byte{' '}, n-len(s)))
-}
-
-func makeSpaces(n int) string {
-	if n <= 0 {
-		return ""
-	}
-	return string(bytes.Repeat([]byte{' '}, n))
 }
 
 func NewMockOledDevice() *MockOledDevice {

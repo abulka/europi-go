@@ -32,7 +32,6 @@ func RunApp(idx int, io *hw.Controls) {
 	}
 }
 
-
 // ShouldExit returns true if both B1 and B2 are pressed and held for 2s
 var doubleButtonPressLastMs int64 = 0
 
@@ -53,8 +52,8 @@ func ShouldExit(io *hw.Controls) bool {
 
 func SplashScreen(io *hw.Controls) {
 	io.Display.ClearDisplay()
-	io.Display.WriteLine(0, 10, "EuroPi Simplified")
-	io.Display.WriteLine(0, 20, "by TinyGo "+version)
+	io.Display.WriteLine(0, "EuroPi Simplified")
+	io.Display.WriteLine(1, "by TinyGo "+version)
 	io.Display.Display()
 	time.Sleep(2 * time.Second)
 	io.Display.ClearDisplay()

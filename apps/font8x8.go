@@ -23,9 +23,9 @@ func (c Font8x8) Name() string { return "Font8x8" }
 
 func (c Font8x8) Run(io *hw.Controls) {
 	io.Display.ClearDisplay()
-	io.Display.WriteLine(0, 10, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	io.Display.WriteLine(0, 20, "abcdefghijklmnopqrstuvwxyz")
-	io.Display.WriteLine(0, 30, "0123456789!@#$%^&*()./-_=+")
+	io.Display.WriteLine(0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	io.Display.WriteLine(1, "abcdefghijklmnopqrstuvwxyz")
+	io.Display.WriteLine(2, "0123456789!@#$%^&*()./-_=+")
 	io.Display.Display()
 
 	for {

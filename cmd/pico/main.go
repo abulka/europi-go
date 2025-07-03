@@ -35,8 +35,12 @@ func main() {
 	firmware.SplashScreen(iox)
 	println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
 
+	visibleLines := 3
+	if tinyFont {
+		visibleLines = 4
+	}
 	for {
-		idx := firmware.MenuChooser(iox)
+		idx := firmware.MenuChooser(iox, visibleLines)
 		if idx < 0 {
 			println("Exiting main menu loop.")
 			break

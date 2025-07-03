@@ -6,23 +6,22 @@ import (
 )
 
 // MenuChooser displays a scrollable menu of registered apps, allows selection with K2, launch with B2
-func MenuChooser(io *hw.Controls) int {
+func MenuChooser(io *hw.Controls, visibleLines int) int {
 	numApps := len(appRegistry)
 	if numApps == 0 {
 		return -1
 	}
+
 	selected := 0
 	lastK2 := io.K2.Value()
-	const debounceMs = 150
-	lastAction := time.Now()
+	
+	// Initial clear only
+	io.Display.ClearDisplay()
+
 	for {
 		k2 := io.K2.Value()
-		if abs(k2-lastK2) > 2 && time.Since(lastAction) > debounceMs*time.Millisecond {
-			if k2 > lastK2 {
-				selected++
-			} else if k2 < lastK2 {
-				selected--
-			}
+		if k2 != lastK2 {
+			selected = (k2 * (numApps - 1)) / 100
 			if selected < 0 {
 				selected = 0
 			}
@@ -30,25 +29,41 @@ func MenuChooser(io *hw.Controls) int {
 				selected = numApps - 1
 			}
 			lastK2 = k2
-			lastAction = time.Now()
 		}
-		start := selected - 1
-		if start < 0 {
-			start = 0
+
+		// Always write to all visible lines (empty string for unused lines)
+		if numApps <= visibleLines {
+			// No windowing, just show all items and highlight directly
+			for i := 0; i < visibleLines; i++ {
+				if i < numApps {
+					io.Display.WriteLine(i, appRegistry[i].Name())
+				} else {
+					io.Display.WriteLine(i, "") // Clear unused lines
+				}
+			}
+			io.Display.HighlightLn(selected)
+		} else {
+			// Windowing logic for long menus
+			start := selected - visibleLines/2
+			if start < 0 {
+				start = 0
+			}
+			if start > numApps-visibleLines {
+				start = numApps - visibleLines
+			}
+			for i := 0; i < visibleLines; i++ {
+				idx := start + i
+				if idx < numApps {
+					io.Display.WriteLine(i, appRegistry[idx].Name())
+				} else {
+					io.Display.WriteLine(i, "") // Clear unused lines
+				}
+			}
+			io.Display.HighlightLn(selected - start)
 		}
-		if start > numApps-3 {
-			start = numApps - 3
-		}
-		if start < 0 {
-			start = 0
-		}
-		for i := 0; i < 3 && (start+i) < numApps; i++ {
-			idx := start + i
-			name := appRegistry[idx].Name()
-			io.Display.WriteLine(0, int16(10+10*i), name)
-		}
-		io.Display.HighlightLn(selected - start)
+		
 		io.Display.Display()
+
 		if io.B2.Pressed() && !io.B1.Pressed() {
 			for io.B2.Pressed() {
 				time.Sleep(10 * time.Millisecond)
@@ -60,12 +75,4 @@ func MenuChooser(io *hw.Controls) int {
 		}
 		time.Sleep(30 * time.Millisecond)
 	}
-}
-
-// abs helper for menu logic
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
 }

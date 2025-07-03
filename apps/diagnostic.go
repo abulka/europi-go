@@ -94,11 +94,10 @@ func (c Diagnostic) Run(io *hw.Controls) {
 			}
 			ainDisp := strconv.FormatFloat(ainVolts, 'f', 2, 64) + "v"
 			io.Display.ClearDisplay()
-			io.Display.WriteLine(0, 10, "Knob1: "+strconv.Itoa(knob1Value))
-			io.Display.WriteLine(0, 20, "Knob2: "+strconv.Itoa(knob2Value))
-			io.Display.WriteLine(0, 30, "B1:"+btn1Msg+" B2:"+btn2Msg)
-			io.Display.WriteLine(75, 10, "DIN:"+dinDisp)
-			io.Display.WriteLine(75, 20, "AIN:"+ainDisp)
+			io.Display.WriteLine(0, "Knob1: "+strconv.Itoa(knob1Value))
+			io.Display.WriteLine(1, "Knob2: "+strconv.Itoa(knob2Value))
+			io.Display.WriteLine(2, "B1:"+btn1Msg+" B2:"+btn2Msg)
+			io.Display.WriteLine(3, "DIN:"+dinDisp+" AIN:"+ainDisp)
 			io.Display.Display()
 			displayState.Update(knob1Value, knob2Value, ainValue, btn1Pressed, btn2Pressed, dinState)
 		}

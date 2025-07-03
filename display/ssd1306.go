@@ -20,25 +20,30 @@ type SSD1306Adapter struct {
 
 func (o *SSD1306Adapter) ClearDisplay() {
 	o.dev.ClearDisplay()
+	o.highlighted = -1 // Reset highlight when clearing
 }
 
 func (o *SSD1306Adapter) Display() {
 	o.dev.Display()
 }
 
-func (o *SSD1306Adapter) WriteLine(x, y int16, text string) {
-	lineNum := int(y / 10) // 10px per line as used in menu_chooser
+func (o *SSD1306Adapter) WriteLine(lineNum int, text string) {
+	// Calculate position for line number (assuming 10px per line)
+	y := int16(lineNum*10 + 10) // +10 for baseline offset
+	
+	// Add highlight marker if this line is highlighted
 	if lineNum == o.highlighted {
 		text = text + " *"
 	}
-	tinyfont.WriteLine(&o.dev, &proggy.TinySZ8pt7b, x, y, text, color.RGBA{255, 255, 255, 255})
+	
+	tinyfont.WriteLine(&o.dev, &proggy.TinySZ8pt7b, 0, y, text, color.RGBA{255, 255, 255, 255})
 }
 
 func (o *SSD1306Adapter) HighlightLn(lineNum int) {
 	o.highlighted = lineNum
 }
 
-// InitDisplay sets up the I2C and SSD1306 display and returns the display instance.
+// NewOledDeviceTinyFont sets up the I2C and SSD1306 display and returns the display instance.
 func NewOledDeviceTinyFont() IOledDevice {
 	i2c := machine.I2C0
 	i2c.Configure(machine.I2CConfig{
