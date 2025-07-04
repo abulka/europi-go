@@ -6,9 +6,7 @@ package display
 import "bytes"
 
 type MockOledDevice struct {
-	Lines       [3]string
-	Cleared     bool
-	Displayed   bool
+	Lines       []string
 	LineLen     int // max chars per line (16 for 8x8, 21 for TinyFont)
 	highlighted int // -1 for none
 }
@@ -18,11 +16,14 @@ func NewMockOledDeviceWithFont(tinyFont bool) *MockOledDevice {
 	if tinyFont {
 		lineLen = 21
 	}
-	return &MockOledDevice{LineLen: lineLen}
+	numLines := 3
+	if tinyFont {
+		numLines = 4 // TinyFont has 4 lines
+	}
+	return &MockOledDevice{LineLen: lineLen, Lines: make([]string, numLines), highlighted: -1}
 }
 
 func (m *MockOledDevice) ClearDisplay() {
-	m.Cleared = true
 	for i := range m.Lines {
 		m.Lines[i] = ""
 	}
@@ -39,20 +40,24 @@ func (m *MockOledDevice) WriteLine(lineNum int, text string) {
 	m.Lines[lineNum] = text
 }
 
-func (m *MockOledDevice) Display() {
-	m.Displayed = true
+func (m *MockOledDevice) DisplayString() string {
 	const width = 25
 	top := "┌" + string(bytes.Repeat([]byte("─"), width)) + "┐"
 	bottom := "└" + string(bytes.Repeat([]byte("─"), width)) + "┘"
-	println(top)
+	var out bytes.Buffer
+	out.WriteString(top + "\n")
 	for i, line := range m.Lines {
 		if i == m.highlighted && m.highlighted >= 0 {
-			// Append highlight symbol to highlighted line
 			line += " *"
 		}
-		println("│" + padOrTruncate(line, width) + "│")
+		out.WriteString("│" + padOrTruncate(line, width) + "│\n")
 	}
-	println(bottom)
+	out.WriteString(bottom + "\n")
+	return out.String()
+}
+
+func (m *MockOledDevice) Display() {
+	print(m.DisplayString())
 }
 
 func padOrTruncate(s string, n int) string {
@@ -60,10 +65,6 @@ func padOrTruncate(s string, n int) string {
 		return s[:n]
 	}
 	return s + string(bytes.Repeat([]byte{' '}, n-len(s)))
-}
-
-func NewMockOledDevice() *MockOledDevice {
-	return &MockOledDevice{}
 }
 
 func (m *MockOledDevice) HighlightLn(lineNum int) {
