@@ -132,3 +132,53 @@ func TestDedent_PreserveMarginTabs(t *testing.T) {
 		t.Errorf("dedent() failed.\nExpected: %q\nGot:      %q", expect, got)
 	}
 }
+
+// create a test for trimdedent which is much simpler
+func TestTrimDedent(t *testing.T) {
+	text := "\n  Hello there.\n  How are you?\n  Oh good.\n"
+	expect := "Hello there.\nHow are you?\nOh good."
+	if got := trimdedent(text); got != expect {
+		t.Errorf("trimdedent() failed.\nExpected: %q\nGot:      %q", expect, got)
+	}
+
+	text = "\n  Hello there.\n\n  How are you?\n  Oh good.\n"
+	expect = "Hello there.\n\nHow are you?\nOh good."
+	if got := trimdedent(text); got != expect {
+		t.Errorf("trimdedent() failed.\nExpected: %q\nGot:      %q", expect, got)
+	}
+}
+
+// trim should remove whitespace up to and including the first newline at the start,
+// and remove the last newline at the end, then dedent the remaining text.
+func TestTrimDedentTrimming(t *testing.T) {
+	result := "┌─────────────────────────┐\n│Hello                    │\n│World *                  │\n│Test                     │\n└─────────────────────────┘\n"
+	expected := trimdedent(`
+	┌─────────────────────────┐
+	│Hello                    │
+	│World *                  │
+	│Test                     │
+	└─────────────────────────┘
+	`)
+	if result != expected {
+		t.Errorf("Expected highlighted display output to be:\n%s\nGot:\n%s", expected, result)
+	}
+
+	result = "A\nB\n"
+	expected = trimdedent(`
+	A
+	B
+	`)
+	if result != expected {
+		t.Errorf("Expected highlighted display output to be:\n%s\nGot:\n%s", expected, result)
+	}
+
+	// Remove the extra leading whitespace in `expected` var, before the first newline
+	result = "A\nB\n"
+	expected = trimdedent(`    
+	A
+	B
+	`)
+	if result != expected {
+		t.Errorf("Expected highlighted display output to be:\n%s\nGot:\n%s", expected, result)
+	}
+}

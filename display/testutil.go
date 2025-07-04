@@ -57,9 +57,13 @@ func dedent(s string) string {
 
 // trimdedent trims only the leading and trailing newlines, leaving tabs and other whitespace alone, then dedents.
 func trimdedent(s string) string {
-	// Remove a single leading newline if present
-	if len(s) > 0 && s[0] == '\n' {
-		s = s[1:]
+	// Remove any leading whitespace (spaces, tabs) before the first newline
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i < len(s) && s[i] == '\n' {
+		s = s[i+1:]
 	}
 	// Remove a single trailing newline if present
 	if len(s) > 0 && s[len(s)-1] == '\n' {
