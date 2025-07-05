@@ -3,6 +3,8 @@ package mock
 import (
 	hw "europi/controls"
 	"time"
+	"europi/logutil"
+
 )
 
 // Helper functions for mock input, since SetValue and SetPressed do not exist on the IKnob and IButton interfaces.
@@ -90,5 +92,6 @@ func SelectMenuItem(knob hw.IKnob, idx int) {
 		idx = numMenuItems - 1
 	}
 	knobValue := int(float64(idx) * 100.0 / float64(numMenuItems-1))
+	logutil.Println("Setting knob value to", knobValue, "for menu item", idx, "of", numMenuItems)
 	SetKnobValue(knob, knobValue)
 }

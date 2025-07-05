@@ -13,7 +13,7 @@
             "args": ["-tinyfont"]
         },
         {
-            "name": "Run mock",
+            "name": "Run mock with 8x8 font",
             "type": "go",
             "request": "launch",
             "mode": "auto",

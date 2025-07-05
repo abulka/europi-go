@@ -12,17 +12,9 @@ import (
 const HighlightSymbol = " *"
 
 type MockOledDeviceTea struct {
-	lines       [3]string
-	program     *tea.Program
-	LineLen     int // max chars per line (16 for 8x8, 21 for TinyFont)
-	highlighted int // -1 for none
-}
-
-func NewMockOledDeviceTea() *MockOledDeviceTea {
-	m := &MockOledDeviceTea{LineLen: 16}
-	m.program = tea.NewProgram(&oledModel{lines: m.lines})
-	go func() { _, _ = m.program.Run() }()
-	return m
+	LinesRaw []string // like a real OLED, but in memory
+	program  *tea.Program
+	LineLen  int // max chars per line (16 for 8x8, 21 for TinyFont)
 }
 
 func NewMockOledDeviceTeaWithFont(tinyFont bool) *MockOledDeviceTea {
@@ -30,61 +22,84 @@ func NewMockOledDeviceTeaWithFont(tinyFont bool) *MockOledDeviceTea {
 	if tinyFont {
 		lineLen = 21
 	}
-	m := &MockOledDeviceTea{LineLen: lineLen}
-	m.program = tea.NewProgram(&oledModel{lines: m.lines})
+	numLines := 3
+	if tinyFont {
+		numLines = 4
+	}
+	m := &MockOledDeviceTea{LineLen: lineLen, LinesRaw: make([]string, numLines)}
+	m.program = tea.NewProgram(&oledModel{lines: m.LinesRaw})
 	go func() { _, _ = m.program.Run() }()
 	return m
 }
 
 func (m *MockOledDeviceTea) ClearDisplay() {
-	m.lines = [3]string{"", "", ""}
-	m.highlighted = -1
+	for i := range m.LinesRaw {
+		m.LinesRaw[i] = ""
+	}
 	m.update()
 }
 
 func (m *MockOledDeviceTea) WriteLine(lineNum int, text string) {
-	if lineNum < 0 || lineNum >= len(m.lines) {
+	if lineNum < 0 || lineNum >= len(m.LinesRaw) {
 		return // ignore out of range
 	}
 	// Truncate text to max line length
 	if len(text) > m.LineLen {
 		text = text[:m.LineLen]
 	}
-	m.lines[lineNum] = text
+	m.LinesRaw[lineNum] = text
+	m.update()
+}
+
+func (m *MockOledDeviceTea) WriteLineHighlighted(lineNum int, text string) {
+	if lineNum < 0 || lineNum >= len(m.LinesRaw) {
+		return // ignore out of range
+	}
+	marker := HighlightSymbol
+	maxTextLen := m.LineLen - len(marker)
+	if maxTextLen < 0 {
+		maxTextLen = 0
+	}
+	if len(text) > maxTextLen {
+		text = text[:maxTextLen]
+	}
+	m.LinesRaw[lineNum] = text + marker
 	m.update()
 }
 
 func (m *MockOledDeviceTea) Display() {
 	m.update()
-	// Log OLED lines to logutil as a Unicode box with fixed width
+	logutil.Println(m.DisplayString())
+}
+
+func (m *MockOledDeviceTea) DisplayString() string {
 	const width = 25
 	top := "┌" + string(bytes.Repeat([]byte("─"), width)) + "┐"
 	bottom := "└" + string(bytes.Repeat([]byte("─"), width)) + "┘"
-	logutil.Println(top)
-	for _, line := range m.lines {
-		logutil.Println("│" + padOrTruncateTea(line, width) + "│")
+	var out bytes.Buffer
+	out.WriteString(top + "\n")
+	for _, line := range m.LinesRaw {
+		out.WriteString("│" + padOrTruncateTea(line, width) + "│\n")
 	}
-	logutil.Println(bottom)
-}
-
-func (m *MockOledDeviceTea) HighlightLn(lineNum int) {
-	m.highlighted = lineNum
+	out.WriteString(bottom + "\n")
+	return out.String()
 }
 
 func (m *MockOledDeviceTea) update() {
 	if m.program != nil {
-		m.program.Send(updateMsg{lines: m.lines, highlighted: m.highlighted})
+		// Send a copy of the lines slice to avoid race conditions
+		linesCopy := make([]string, len(m.LinesRaw))
+		copy(linesCopy, m.LinesRaw)
+		m.program.Send(updateMsg{lines: linesCopy})
 	}
 }
 
 type updateMsg struct {
-	lines       [3]string
-	highlighted int
+	lines []string
 }
 
 type oledModel struct {
-	lines       [3]string
-	highlighted int
+	lines []string
 }
 
 func (m *oledModel) Init() tea.Cmd {
@@ -99,13 +114,8 @@ func (m *oledModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case updateMsg:
 		m.lines = msg.lines
-		m.highlighted = msg.highlighted
 	}
 	return m, nil
-}
-
-func (m *oledModel) Highlighted() int {
-	return m.highlighted
 }
 
 func (m *oledModel) View() string {
@@ -115,22 +125,11 @@ func (m *oledModel) View() string {
 	bottom := "└" + string(bytes.Repeat([]byte("─"), width)) + "┘"
 	var b bytes.Buffer
 	b.WriteString(top + "\n")
-	for i, line := range m.lines {
-		toShow := line
-		if m.highlighted == i && m.highlighted >= 0 && len(line) > 0 {
-			toShow = line + HighlightSymbol
-		}
-		b.WriteString("│" + padOrTruncateTea(toShow, width) + "│\n")
+	for _, line := range m.lines {
+		b.WriteString("│" + padOrTruncateTea(line, width) + "│\n")
 	}
 	b.WriteString(bottom)
 	return b.String()
-}
-
-func makeSpacesTea(n int) string {
-	if n <= 0 {
-		return ""
-	}
-	return string(bytes.Repeat([]byte{' '}, n))
 }
 
 func padOrTruncateTea(s string, n int) string {

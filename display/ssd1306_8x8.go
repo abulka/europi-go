@@ -9,14 +9,12 @@ import (
 )
 
 type SSD1306Adapter8x8 struct {
-	dev         ssd1306.Device
-	highlighted int // -1 for none
+	dev          ssd1306.Device
 	fontRenderer *Font8x8Renderer
 }
 
 func (o *SSD1306Adapter8x8) ClearDisplay() {
 	o.dev.ClearDisplay()
-	o.highlighted = -1 // Reset highlight when clearing
 }
 
 func (o *SSD1306Adapter8x8) Display() {
@@ -26,17 +24,13 @@ func (o *SSD1306Adapter8x8) Display() {
 func (o *SSD1306Adapter8x8) WriteLine(lineNum int, text string) {
 	// Calculate position for line number (8px per line for 8x8 font)
 	y := int16(lineNum * 8)
-	
-	if lineNum == o.highlighted {
-		// Highlight this line (reverse video)
-		o.fontRenderer.HighlightLine(o.dev, 0, y, text, 1, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
-	} else {
-		o.fontRenderer.WriteLine(o.dev, 0, y, text, color.RGBA{255, 255, 255, 255})
-	}
+	o.fontRenderer.WriteLine(o.dev, 0, y, text, color.RGBA{255, 255, 255, 255})
 }
 
-func (o *SSD1306Adapter8x8) HighlightLn(lineNum int) {
-	o.highlighted = lineNum
+func (o *SSD1306Adapter8x8) WriteLineHighlighted(lineNum int, text string) {
+	// Highlight this line (reverse video)
+	y := int16(lineNum * 8)
+	o.fontRenderer.HighlightLine(o.dev, 0, y, text, 1, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 }
 
 // NewOledDevice8x8 creates a new SSD1306 device with 8x8 font support
@@ -55,7 +49,6 @@ func NewOledDevice8x8() IOledDevice {
 	})
 	return &SSD1306Adapter8x8{
 		dev:          dev,
-		highlighted:  -1,
 		fontRenderer: NewFont8x8Renderer(),
 	}
 }

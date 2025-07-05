@@ -15,12 +15,10 @@ import (
 
 type SSD1306Adapter struct {
 	dev         ssd1306.Device
-	highlighted int // -1 for none
 }
 
 func (o *SSD1306Adapter) ClearDisplay() {
 	o.dev.ClearDisplay()
-	o.highlighted = -1 // Reset highlight when clearing
 }
 
 func (o *SSD1306Adapter) Display() {
@@ -30,17 +28,13 @@ func (o *SSD1306Adapter) Display() {
 func (o *SSD1306Adapter) WriteLine(lineNum int, text string) {
 	// Calculate position for line number (assuming 10px per line)
 	y := int16(lineNum*10 + 10) // +10 for baseline offset
-	
-	// Add highlight marker if this line is highlighted
-	if lineNum == o.highlighted {
-		text = text + " *"
-	}
-	
 	tinyfont.WriteLine(&o.dev, &proggy.TinySZ8pt7b, 0, y, text, color.RGBA{255, 255, 255, 255})
 }
 
-func (o *SSD1306Adapter) HighlightLn(lineNum int) {
-	o.highlighted = lineNum
+func (o *SSD1306Adapter) WriteLineHighlighted(lineNum int, text string) {
+	// Highlighted lines are marked with a star at the end
+	text += " *"
+	o.WriteLine(lineNum, text)
 }
 
 // NewOledDeviceTinyFont sets up the I2C and SSD1306 display and returns the display instance.
@@ -57,5 +51,5 @@ func NewOledDeviceTinyFont() IOledDevice {
 		Width:   128,
 		Height:  32,
 	})
-	return &SSD1306Adapter{dev: dev, highlighted: -1}
+	return &SSD1306Adapter{dev: dev}
 }

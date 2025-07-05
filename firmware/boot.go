@@ -26,6 +26,10 @@ func GetAppName(idx int) string {
 	return ""
 }
 
+func NumRegisteredApps() int {
+	return len(appRegistry)
+}
+
 func RunApp(idx int, io *hw.Controls) {
 	if idx >= 0 && idx < len(appRegistry) {
 		appRegistry[idx].Run(io)

@@ -1,7 +1,14 @@
 //go:build tinygo
 
+// Building only
 // tinygo build -target=pico ./cmd/pico
+// or for TinyFont support:
+// tinygo build -tags tinyfont -target=pico ./cmd/
+
+// Flashing to Raspberry Pi Pico EuroPi
 // tinygo flash -target=pico --monitor ./cmd/pico
+// or for TinyFont support:
+// tinygo flash -tags tinyfont -target=pico --monitor ./cmd/pico
 
 package main
 
@@ -24,6 +31,10 @@ func main() {
 		println("Using 8x8 font for OLED display.")
 		oled = display.NewOledDevice8x8()
 	}
+	
+	// wrap with buffered display decorator
+	oled = display.NewBufferedDisplayWithFont(oled, tinyFont)
+
 	iox := hw.SetupEuroPiWithDisplay(oled)
 	println("EuroPi configured (production mode).")
 

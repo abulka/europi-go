@@ -1,7 +1,9 @@
 //go:build !tinygo
 
 // Run with go run ./cmd/mock
+// Run with go run ./cmd/mock -tinyfont
 // Run with go run ./cmd/mock -tea
+// Run with go run ./cmd/mock -tea -tinyfont
 
 package main
 
@@ -36,7 +38,7 @@ func main() {
 		oled = display.NewMockOledDeviceTeaWithFont(*tinyFont)
 	} else {
 		base := display.NewMockOledDeviceWithFont(*tinyFont)
-		oled = display.NewBufferedOledDevice(base, visibleLines)
+		oled = display.NewBufferedDisplayWithFont(base, *tinyFont)
 	}
 	iox := hw.SetupMockEuroPiWithDisplay(oled)
 	if *tea {
@@ -57,14 +59,15 @@ func main() {
 
 	// Simulate user input
 	go func() {
-		mock.SetNumMenuItems(3)
-		time.Sleep(1 * time.Second)
-
-		// Visually cycle highlighted menu line: 0 -> 1 -> 2 -> 1 -> 0
-		for _, idx := range []int{0, 1, 2, 1, 0} {
-			mock.SelectMenuItem(iox.K2, idx)
-			time.Sleep(400 * time.Millisecond)
+		numMenuItems := firmware.NumRegisteredApps()
+		if numMenuItems == 0 {
+			numMenuItems = 1
 		}
+		mock.SetNumMenuItems(numMenuItems)
+		time.Sleep(100 * time.Millisecond)
+
+		// Visually cycle highlighted menu line: 0 -> 1 -> ... -> n-1 -> ... -> 0
+		cycleThroughMenuItems(numMenuItems, iox)
 
 		// Select Diagnostic (index 0)
 		mock.SelectMenuItem(iox.K2, 0)
@@ -125,5 +128,19 @@ func main() {
 		firmware.RunApp(idx, iox)
 		logutil.Println(firmware.GetAppName(idx), "completed. Returning to menu...")
 		firmware.SplashScreen(iox)
+	}
+}
+
+func cycleThroughMenuItems(numMenuItems int, iox *hw.Controls) {
+	var cycle []int
+	for i := 0; i < numMenuItems; i++ {
+		cycle = append(cycle, i)
+	}
+	for i := numMenuItems - 2; i > 0; i-- {
+		cycle = append(cycle, i)
+	}
+	for _, idx := range cycle {
+		mock.SelectMenuItem(iox.K2, idx)
+		time.Sleep(400 * time.Millisecond)
 	}
 }

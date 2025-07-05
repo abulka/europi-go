@@ -1,93 +1,112 @@
 package display
 
-// BufferedOledDevice wraps an IOledDevice and provides line buffering with dirty line tracking.
-type BufferedOledDevice struct {
-	inner       IOledDevice
-	lines       []string
-	dirty       []bool
-	highlighted int
-	lineCount   int
+// Decorator for any IOledDevice, adding buffering capabilities
+// This allows us to track changes to lines and only update the display when necessary,
+// improving performance and reducing flicker.
+
+// We prevent calls to the underlying OledHighlighter methods:
+// - WriteLine if the line text is unchanged (we probe the underlying Lines slice)
+// - WriteLineHighlighted if the line text is unchanged (we probe the underlying Lines slice)
+// - ClearHighlight if no highlight is set
+// - ClearDisplay if the display is already cleared
+// - Display if no changes have been made since the last display update
+// - DisplayString if no changes have been made since the last display update
+
+type BufferedDisplay struct {
+	Backend IOledDevice   // interface field: not embedded!
+	Lines   []string // Lines to display, used for buffering
+	highlighted []bool // Which lines have been called with WriteLineHighlighted
+	dirty bool
 }
 
-// NewBufferedOledDevice creates a new buffered OLED device
-func NewBufferedOledDevice(inner IOledDevice, lineCount int) *BufferedOledDevice {
-	return &BufferedOledDevice{
-		inner:       inner,
-		lines:       make([]string, lineCount),
-		dirty:       make([]bool, lineCount),
-		highlighted: -1,
-		lineCount:   lineCount,
+func NewBufferedDisplayWithFont(real IOledDevice, tinyFont bool) *BufferedDisplay {
+	numLines := 3
+	if tinyFont {
+		numLines = 4 // TinyFont has 4 lines
 	}
-}
-
-func (b *BufferedOledDevice) ClearDisplay() {
-	// Clear all lines and mark them as dirty
-	for i := range b.lines {
-		b.lines[i] = ""
-		b.dirty[i] = true
-	}
-	b.highlighted = -1
-	b.inner.ClearDisplay()
-}
-
-func (b *BufferedOledDevice) WriteLine(lineNum int, text string) {
-	if lineNum < 0 || lineNum >= b.lineCount {
-		return // Invalid line number
-	}
-	// Only mark as dirty if the content actually changed
-	if b.lines[lineNum] != text {
-		b.lines[lineNum] = text
-		b.dirty[lineNum] = true
+	return &BufferedDisplay{
+		Backend: real,
+		Lines:   make([]string, numLines),
+		highlighted: make([]bool, numLines),
+		dirty:   false,
 	}
 }
 
-func (b *BufferedOledDevice) HighlightLn(lineNum int) {
-	if b.highlighted == lineNum {
-		return // No change needed
+func (m *BufferedDisplay) WriteLine(lineNum int, text string) {
+	if lineNum < 0 || lineNum >= len(m.Lines) {
+		return // ignore out of range
 	}
-
-	// Mark old highlighted line as dirty (if valid)
-	if b.highlighted >= 0 && b.highlighted < b.lineCount {
-		b.dirty[b.highlighted] = true
+	if m.Lines[lineNum] == text && !m.highlighted[lineNum] {
+		return // No change, nothing to do
 	}
-
-	// Mark new highlighted line as dirty (if valid)
-	if lineNum >= 0 && lineNum < b.lineCount {
-		b.dirty[lineNum] = true
-	}
-
-	b.highlighted = lineNum
-	b.inner.HighlightLn(lineNum)
+	m.Backend.WriteLine(lineNum, text)
+	m.Lines[lineNum] = text // Update the buffered line
+	m.highlighted[lineNum] = false // Reset highlight state for this line
+	m.dirty = true
 }
 
+func (m *BufferedDisplay) WriteLineHighlighted(lineNum int, text string) {
+	if lineNum < 0 || lineNum >= len(m.Lines) {
+		return // ignore out of range
+	}
+	if m.Lines[lineNum] == text && m.highlighted[lineNum] {
+		return // No change, nothing to do
+	}
+	m.Backend.WriteLineHighlighted(lineNum, text)
+	m.Lines[lineNum] = text // Update the buffered line
+	m.highlighted[lineNum] = true // Set highlight state for this line
+	m.dirty = true
+}
 
-func (b *BufferedOledDevice) Display() {
-	// Check if any lines are dirty
-	hasDirtyLines := false
-	for i := range b.dirty {
-		if b.dirty[i] {
-			hasDirtyLines = true
+func (m *BufferedDisplay) ClearDisplay() {
+	// check if already in a cleared state
+	allEmpty := true
+	for _, line := range m.Lines {
+		if line != "" {
+			allEmpty = false
 			break
 		}
 	}
+	allUnhighlighted := true
+	for _, highlighted := range m.highlighted {
+		if highlighted {
+			allUnhighlighted = false
+			break
+		}
+	}
+	// If no lines are set and no highlights, we can skip clearing
+	if allEmpty && allUnhighlighted {
+		return // Already cleared
+	}
 
-	if !hasDirtyLines {
+	m.Backend.ClearDisplay()
+
+	// Reset lines and highlight state
+	for i := range m.Lines {
+		m.Lines[i] = "" // Clear all lines
+		m.highlighted[i] = false // Reset highlight state
+	}
+	m.dirty = true
+}
+
+// For testing purposes
+func (m *BufferedDisplay) DisplayString() string {
+	if !m.dirty {
+		return ""
+	}
+	// if the backend has a DisplayString method, use it
+	if displayStringer, ok := m.Backend.(interface{ DisplayString() string }); ok {
+		result := displayStringer.DisplayString() // Return current display state
+		m.dirty = false                             // Reset dirty flag after getting display string
+		return result
+	}
+	return "" // Fallback if no DisplayString method is available
+}
+
+func (m *BufferedDisplay) Display() {
+	if !m.dirty {
 		return // Nothing to update
 	}
-
-	// Clear display and redraw ALL lines (not just dirty ones)
-	b.inner.ClearDisplay()
-	b.inner.HighlightLn(b.highlighted)
-
-	// Write all lines to the inner device
-	for i := 0; i < b.lineCount; i++ {
-		b.inner.WriteLine(i, b.lines[i])
-	}
-
-	// Clear all dirty flags
-	for i := range b.dirty {
-		b.dirty[i] = false
-	}
-
-	b.inner.Display()
+	m.Backend.Display()
+	m.dirty = false // Reset dirty flag after display update
 }

@@ -6,9 +6,8 @@ package display
 import "bytes"
 
 type MockOledDevice struct {
-	Lines       []string
-	LineLen     int // max chars per line (16 for 8x8, 21 for TinyFont)
-	highlighted int // -1 for none
+	LinesRaw []string // like a real OLED, but in memory
+	LineLen  int      // max chars per line (16 for 8x8, 21 for TinyFont)
 }
 
 func NewMockOledDeviceWithFont(tinyFont bool) *MockOledDevice {
@@ -20,24 +19,36 @@ func NewMockOledDeviceWithFont(tinyFont bool) *MockOledDevice {
 	if tinyFont {
 		numLines = 4 // TinyFont has 4 lines
 	}
-	return &MockOledDevice{LineLen: lineLen, Lines: make([]string, numLines), highlighted: -1}
+	return &MockOledDevice{LineLen: lineLen, LinesRaw: make([]string, numLines)}
 }
 
 func (m *MockOledDevice) ClearDisplay() {
-	for i := range m.Lines {
-		m.Lines[i] = ""
+	for i := range m.LinesRaw {
+		m.LinesRaw[i] = ""
 	}
 }
 
 func (m *MockOledDevice) WriteLine(lineNum int, text string) {
-	if lineNum < 0 || lineNum >= len(m.Lines) {
+	if lineNum < 0 || lineNum >= len(m.LinesRaw) {
 		return // ignore out of range
 	}
 	// Truncate text to max line length
 	if len(text) > m.LineLen {
 		text = text[:m.LineLen]
 	}
-	m.Lines[lineNum] = text
+	m.LinesRaw[lineNum] = text
+}
+
+func (m *MockOledDevice) WriteLineHighlighted(lineNum int, text string) {
+	marker := " *"
+	maxTextLen := m.LineLen - len(marker)
+	if maxTextLen < 0 {
+		maxTextLen = 0
+	}
+	if len(text) > maxTextLen {
+		text = text[:maxTextLen]
+	}
+	m.LinesRaw[lineNum] = text + marker
 }
 
 func (m *MockOledDevice) DisplayString() string {
@@ -46,10 +57,7 @@ func (m *MockOledDevice) DisplayString() string {
 	bottom := "└" + string(bytes.Repeat([]byte("─"), width)) + "┘"
 	var out bytes.Buffer
 	out.WriteString(top + "\n")
-	for i, line := range m.Lines {
-		if i == m.highlighted && m.highlighted >= 0 {
-			line += " *"
-		}
+	for _, line := range m.LinesRaw {
 		out.WriteString("│" + padOrTruncate(line, width) + "│\n")
 	}
 	out.WriteString(bottom + "\n")
@@ -65,8 +73,4 @@ func padOrTruncate(s string, n int) string {
 		return s[:n]
 	}
 	return s + string(bytes.Repeat([]byte{' '}, n-len(s)))
-}
-
-func (m *MockOledDevice) HighlightLn(lineNum int) {
-	m.highlighted = lineNum
 }

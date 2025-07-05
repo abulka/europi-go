@@ -14,7 +14,7 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 
 	selected := 0
 	lastK2 := io.K2.Value()
-	
+
 	// Initial clear only
 	io.Display.ClearDisplay()
 
@@ -32,16 +32,20 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 		}
 
 		// Always write to all visible lines (empty string for unused lines)
+		// ...existing code...
 		if numApps <= visibleLines {
 			// No windowing, just show all items and highlight directly
 			for i := 0; i < visibleLines; i++ {
 				if i < numApps {
-					io.Display.WriteLine(i, appRegistry[i].Name())
+					if i == selected {
+						io.Display.WriteLineHighlighted(i, appRegistry[i].Name())
+					} else {
+						io.Display.WriteLine(i, appRegistry[i].Name())
+					}
 				} else {
 					io.Display.WriteLine(i, "") // Clear unused lines
 				}
 			}
-			io.Display.HighlightLn(selected)
 		} else {
 			// Windowing logic for long menus
 			start := selected - visibleLines/2
@@ -54,14 +58,17 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 			for i := 0; i < visibleLines; i++ {
 				idx := start + i
 				if idx < numApps {
-					io.Display.WriteLine(i, appRegistry[idx].Name())
+					if i == (selected - start) {
+						io.Display.WriteLineHighlighted(i, appRegistry[idx].Name())
+					} else {
+						io.Display.WriteLine(i, appRegistry[idx].Name())
+					}
 				} else {
 					io.Display.WriteLine(i, "") // Clear unused lines
 				}
 			}
-			io.Display.HighlightLn(selected - start)
 		}
-		
+
 		io.Display.Display()
 
 		if io.B2.Pressed() && !io.B1.Pressed() {
