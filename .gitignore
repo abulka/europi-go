@@ -83,3 +83,4 @@ Temporary Items
 
 mock.log
 *.elf
+__debug_bin*

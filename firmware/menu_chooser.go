@@ -17,11 +17,10 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 
 	// Initial clear only
 	io.Display.ClearDisplay()
-
 	for {
 		k2 := io.K2.Value()
 		if k2 != lastK2 {
-			selected = (k2 * (numApps - 1)) / 100
+			selected = (k2 * numApps) / 100
 			if selected < 0 {
 				selected = 0
 			}
