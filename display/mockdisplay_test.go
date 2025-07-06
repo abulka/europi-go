@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+// io.Display.ClearDisplay() // TODO arguably if ClearDisplay then we write the same content then buffered decorator should not trigger a full redraw
+
+// TODO - move buffered display tests to a separate file
+
 func TestDisplayBasics(t *testing.T) {
 	oled := NewMockOledDeviceWithFont(false)
 	if oled == nil {

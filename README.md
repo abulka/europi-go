@@ -19,7 +19,9 @@ tinygo flash -target=pico --monitor ./cmd/pico
 tinygo flash -tags tinyfont -target=pico --monitor ./cmd/pico
 ```
 
-Or just build the firmware without flashing:
+> If flashing fails, you may need to reset the EuroPi. Unplug the USB cable then press and hold the reset button on the device whilst re-connecting the USB cable. Then run the flash command again
+
+To build the firmware without flashing:
 
 ```bash
 tinygo build -target=pico ./cmd/pico
@@ -56,4 +58,43 @@ Example mock output:
 │B1:Down B2:Down          │
 └─────────────────────────┘
 ```
+
+# Developing
+
+Set `.vscode/settings.json` to use the `tinygo` build tag for development:
+
+```
+{
+  "go.buildTags": "tinygo"
+}
+```
+
+When actively developing the firmware, so that the TinyGo build tags are set correctly. Tinygo compiler will ALWAYS use the `tinygo` build tag anyway, so its not really necessary - but it makes vscode behave better re intellisense and code navigation.
+
+You will get squiggly lines in vscode for some lines in the other mode (tinygo or !tinygo), but they are not errors, just warnings that the code is not compatible with the standard Go compiler. You can ignore them.
+
+When you are in mock mode including the running of tests, you should disable the `tinygo` build tag in `.vscode/settings.json`, something like this:
+
+```json
+{
+  "go.buildTagsOFFLINE": ""
+}
+
+Or just remove the line with `go.buildTags` completely, as it is not needed for mock mode.
+
+# Testing
+
+To run tests, you can use the following command:
+
+```bash
+go test ./...
+```
+
+or for just the display package:
+
+```bash
+go test ./display
+```
+
+You can also use the Test Explorer in VSCode to run tests interactively.  Remember to disable the `tinygo` build tag in `.vscode/settings.json` if you are running tests (see discussion above).
 

@@ -18,6 +18,8 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 	// Initial clear only
 	io.Display.ClearDisplay()
 	for {
+		// io.Display.ClearDisplay() // TODO arguably if ClearDisplay then we write the same content then buffered decorator should not trigger a full redraw
+
 		k2 := io.K2.Value()
 		if k2 != lastK2 {
 			selected = (k2 * numApps) / 100

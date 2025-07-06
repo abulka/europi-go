@@ -4,31 +4,81 @@ package display
 
 import (
 	"image/color"
+
 	"tinygo.org/x/drivers/ssd1306"
 )
 
-// Font8x8 is the MicroPython petme128 8x8 font converted for TinyGo
-// Covers ASCII characters 32-127 (space through DEL)
-// Each character is 8 bytes (8x8 pixels), stored row by row
-// Bit 1 = pixel on, Bit 0 = pixel off
-// 
-// Each of the 8 bytes represents a column (not a row)
-// Within each byte, the LSB (bit 0) represents the top pixel of that column
-// The bits go from top to bottom as you move from LSB to MSB
-// Explanation and analysis of the font: https://chat.deepseek.com/a/chat/s/ab09a68c-a97d-4743-a3da-7613736958c0
-// 
-// {0x00, 0x7f, 0x7f, 0x09, 0x09, 0x01, 0x01, 0x00} // 70 = F
-// 
-// Column	Hex	Binary	Visual Representation (Top-to-Bottom)
-// 0	0x00	00000000	▓▓▓▓▓▓▓▓
-// 1	0x7F	01111111	▓███████
-// 2	0x7F	01111111	▓███████
-// 3	0x09	00001001	▓▓▓▓█▓▓█
-// 4	0x09	00001001	▓▓▓▓█▓▓█
-// 5	0x01	00000001	▓▓▓▓▓▓▓█
-// 6	0x01	00000001	▓▓▓▓▓▓▓█
-// 7	0x00	00000000	▓▓▓▓▓▓▓▓
-// 
+// GetCharacterData returns the 8x8 bitmap data for a given ASCII character
+// Returns nil if character is not supported (outside printable ASCII range)
+func GetFont8x8CharacterData(char byte) []uint8 {
+	if char < 32 || char > 127 {
+		return nil // Character not supported
+	}
+	charData := Font8x8[char-32] // Offset by 32 since array starts at space (ASCII 32)
+	return charData[:]
+}
+
+// DrawFont8x8Character draws a single character at the specified position
+func DrawFont8x8Character(display ssd1306.Device, x, y int16, char byte, c color.RGBA) {
+	charData := GetFont8x8CharacterData(char)
+	if charData == nil {
+		return // Character not supported
+	}
+
+	// Draw each column as stored in the font data
+	for col := 0; col < 8; col++ {
+		// Draw each pixel in the column
+		for row := 0; row < 8; row++ {
+			// Check if pixel should be on (bit is set)
+			// Treat it as columns with LSB at the top:
+			if charData[col]&(1<<row) != 0 {
+				display.SetPixel(x+int16(col), y+int16(row), c)
+			}
+		}
+	}
+}
+
+// DrawFont8x8Text draws text at the specified position, in c color
+func DrawFont8x8Text(display ssd1306.Device, x, y int16, text string, c color.RGBA) {
+	currentX := x
+	textLen := len(text)
+	for i := 0; i < textLen; i++ {
+		// Check if we're going to exceed the display width
+		if currentX+8 > 128 {
+			break // Stop drawing if we run out of horizontal space
+		}
+		// Draw character
+		DrawFont8x8Character(display, currentX, y, text[i], c)
+		currentX += 8 // Move to next character position (8 pixels wide)
+	}
+}
+
+/*
+Font8x8 is the MicroPython petme128 8x8 font converted for TinyGo
+Covers ASCII characters 32-127 (space through DEL)
+Each character is 8 bytes (8x8 pixels), stored row by row
+Bit 1 = pixel on, Bit 0 = pixel off
+
+Each of the 8 bytes represents a column (not a row)
+Within each byte, the LSB (bit 0) represents the top pixel of that column
+The bits go from top to bottom as you move from LSB to MSB
+
+Explanation and analysis of the font: https://chat.deepseek.com/a/chat/s/ab09a68c-a97d-4743-a3da-7613736958c0
+
+{0x00, 0x7f, 0x7f, 0x09, 0x09, 0x01, 0x01, 0x00} // 70 = F
+
+Column	Hex	Binary	Visual Representation (Top-to-Bottom)
+0	0x00	00000000	▓▓▓▓▓▓▓▓
+1	0x7F	01111111	▓███████
+2	0x7F	01111111	▓███████
+3	0x09	00001001	▓▓▓▓█▓▓█
+4	0x09	00001001	▓▓▓▓█▓▓█
+5	0x01	00000001	▓▓▓▓▓▓▓█
+6	0x01	00000001	▓▓▓▓▓▓▓█
+7	0x00	00000000	▓▓▓▓▓▓▓▓
+
+*/
+
 var Font8x8 = [96][8]uint8{
 	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // 32 = (space)
 	{0x00, 0x00, 0x00, 0x4f, 0x4f, 0x00, 0x00, 0x00}, // 33 = !
@@ -126,70 +176,4 @@ var Font8x8 = [96][8]uint8{
 	{0x00, 0x41, 0x41, 0x77, 0x3e, 0x08, 0x08, 0x00}, // 125 = }
 	{0x00, 0x02, 0x03, 0x01, 0x03, 0x02, 0x03, 0x01}, // 126 = ~
 	{0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55}, // 127 = DEL (checkerboard pattern)
-}
-
-// Font8x8Renderer handles 8x8 font rendering operations
-type Font8x8Renderer struct{}
-
-// NewFont8x8Renderer creates a new 8x8 font renderer
-func NewFont8x8Renderer() *Font8x8Renderer {
-	return &Font8x8Renderer{}
-}
-
-// GetCharacterData returns the 8x8 bitmap data for a given ASCII character
-// Returns nil if character is not supported (outside printable ASCII range)
-func (f *Font8x8Renderer) GetCharacterData(char byte) []uint8 {
-	if char < 32 || char > 127 {
-		return nil // Character not supported
-	}
-	charData := Font8x8[char-32] // Offset by 32 since array starts at space (ASCII 32)
-	return charData[:]
-}
-
-// DrawCharacter draws a single character at the specified position
-func (f *Font8x8Renderer) DrawCharacter(display ssd1306.Device, x, y int16, char byte, c color.RGBA) {
-	charData := f.GetCharacterData(char)
-	if charData == nil {
-		return // Character not supported
-	}
-
-	// Draw each column as stored in the font data
-	for col := 0; col < 8; col++ {
-		// Draw each pixel in the column
-		for row := 0; row < 8; row++ {
-			// Check if pixel should be on (bit is set)
-			// Treat it as columns with LSB at the top:
-			if charData[col]&(1<<row) != 0 {
-				display.SetPixel(x+int16(col), y+int16(row), c)
-			}
-		}
-	}
-}
-
-// WriteLine draws a line of text at the specified position
-func (f *Font8x8Renderer) WriteLine(display ssd1306.Device, x, y int16, text string, c color.RGBA) {
-	currentX := x
-	for i := 0; i < len(text); i++ {
-		// Check if we're going to exceed the display width
-		if currentX+8 > 128 {
-			break // Stop drawing if we run out of horizontal space
-		}
-
-		f.DrawCharacter(display, currentX, y, text[i], c)
-		currentX += 8 // Move to next character position (8 pixels wide)
-	}
-}
-
-// HighlightLine draws a reverse rectangle and writes the text in reverse video for the given line index
-func (f *Font8x8Renderer) HighlightLine(display ssd1306.Device, x, y int16, text string, margin int16, fg, bg color.RGBA) {
-	textW := int16(len(text) * 8)
-	textH := int16(8)
-	rectX := x - margin + 1 // Adjust to prevent negative coordinates
-	rectY := y - margin
-	rectW := textW + margin*2 - 2
-	// Make bottom margin 2px instead of 1px
-	rectH := textH + margin + 2 - 1
-
-	display.FillRectangle(rectX, rectY, rectW, rectH, bg)
-	f.WriteLine(display, x, y, text, fg)
 }

@@ -29,11 +29,11 @@ func main() {
 		oled = display.NewOledDeviceTinyFont()
 	} else {
 		println("Using 8x8 font for OLED display.")
-		oled = display.NewOledDevice8x8()
+		oled = display.NewOledDevice8x8(3) // pass 3 for 3-line mode, or 4 for 4-line mode
 	}
-	
+
 	// wrap with buffered display decorator
-	oled = display.NewBufferedDisplayWithFont(oled, tinyFont)
+	// oled = display.NewBufferedDisplayWithFont(oled, tinyFont)
 
 	iox := hw.SetupEuroPiWithDisplay(oled)
 	println("EuroPi configured (production mode).")
