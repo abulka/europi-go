@@ -87,6 +87,6 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 		if ShouldExit(io) {
 			return -1
 		}
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
 }

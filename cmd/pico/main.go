@@ -33,7 +33,7 @@ func main() {
 	}
 
 	// wrap with buffered display decorator
-	// oled = display.NewBufferedDisplayWithFont(oled, tinyFont)
+	oled = display.NewBufferedDisplayWithFont(oled, tinyFont)
 
 	iox := hw.SetupEuroPiWithDisplay(oled)
 	println("EuroPi configured (production mode).")

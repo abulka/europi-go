@@ -92,7 +92,7 @@ func (o *SSD1306Adapter8x8) WriteLineHighlighted(lineNum int, text string) {
 	rectH := textH + o.HighlightMarginTop + o.HighlightMarginBottom
 	fillRectSafe(o.dev, rectX, rectY, rectW, rectH, ColorWhite)
 	DrawFont8x8Text(o.dev, 0, y, text, ColorBlack)
-	println("Line", lineNum, "at y:", y, "highlight:", rectX, rectY, rectW, rectH, "text:", text)
+	// println("Line", lineNum, "at y:", y, "highlight:", rectX, rectY, rectW, rectH, "text:", text)
 }
 
 // fillRectSafe clamps the rectangle to the 128x32 display area. Why: If you
