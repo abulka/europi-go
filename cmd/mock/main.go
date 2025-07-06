@@ -33,20 +33,40 @@ func main() {
 		visibleLines = 4
 	}
 
+	// Always use buffered display for all mock modes (Tea or not)
+	buffered := true // Set to false to disable buffering for all modes
+
 	var oled display.IOledDevice
 	if *tea {
-		oled = display.NewMockOledDeviceTeaWithFont(*tinyFont)
+		base := display.NewMockOledDeviceTeaWithFont(*tinyFont)
+		if buffered {
+			oled = display.NewBufferedDisplayWithFont(base, *tinyFont)
+		} else {
+			oled = base
+		}
 	} else {
 		base := display.NewMockOledDeviceWithFont(*tinyFont)
-		oled = display.NewBufferedDisplayWithFont(base, *tinyFont)
+		if buffered {
+			oled = display.NewBufferedDisplayWithFont(base, *tinyFont)
+		} else {
+			oled = base
+		}
 	}
 	iox := hw.SetupMockEuroPiWithDisplay(oled)
 	if *tea {
-		const msg = "EuroPi configured (MOCK TEA ☕️ mode)."
+		mode := "MOCK TEA ☕️ mode"
+		if buffered {
+			mode += ", buffered"
+		}
+		msg := "EuroPi configured (" + mode + ")."
 		println(msg)
 		logutil.Println(msg)
 	} else {
-		logutil.Println("EuroPi configured (MOCK 😆 mode).")
+		mode := "MOCK 😆 mode"
+		if buffered {
+			mode += ", buffered"
+		}
+		logutil.Println("EuroPi configured (" + mode + ").")
 	}
 
 	// Register apps

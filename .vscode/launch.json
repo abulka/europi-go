@@ -5,7 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run mock with -tinyfont",
+            "name": "Run mock (3 lines)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/mock"
+        },
+        {
+            "name": "Run mock (4 lines) -tinyfont",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -13,14 +20,7 @@
             "args": ["-tinyfont"]
         },
         {
-            "name": "Run mock with 8x8 font",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/cmd/mock"
-        },
-        {
-            "name": "Run mock with -tea",
+            "name": "Run mock (3 lines) -tea ",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -29,7 +29,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Run mock with -tea -tinyfont",
+            "name": "Run mock (4 lines) -tea -tinyfont",
             "type": "go",
             "request": "launch",
             "mode": "auto",
