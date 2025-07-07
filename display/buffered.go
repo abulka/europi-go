@@ -87,17 +87,14 @@ func (m *BufferedDisplay) Display() {
 	m.dirty = false
 }
 
-// flushBufferToBackend pushes all buffered changes to the backend, but does not call Display or DisplayString.
+// flushBufferToBackend pushes all buffered changes to the backend
 func (m *BufferedDisplay) flushBufferToBackend() {
+	m.Backend.ClearDisplay() // Clear the display first to avoid artifacts
 	for i := range m.Lines {
-		if m.Lines[i] != m.lastDisplayedLines[i] || m.highlighted[i] != m.lastDisplayedHighlighted[i] {
-			if m.Lines[i] == "" && !m.highlighted[i] {
-				m.Backend.WriteLine(i, "")
-			} else if m.highlighted[i] {
-				m.Backend.WriteLineHighlighted(i, m.Lines[i])
-			} else {
-				m.Backend.WriteLine(i, m.Lines[i])
-			}
+		if m.highlighted[i] {
+			m.Backend.WriteLineHighlighted(i, m.Lines[i])
+		} else {
+			m.Backend.WriteLine(i, m.Lines[i])
 		}
 	}
 }
