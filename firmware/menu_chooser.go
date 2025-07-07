@@ -13,7 +13,7 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 	}
 
 	selected := 0
-	lastK2 := io.K2.Value()
+	lastK2 := -1 // Initialize to an invalid value to force display update on first loop
 
 	// When using tinyfont mode where we write text to the screen using the
 	// tinyfont library, we need to ClearDisplay() before writing different text
