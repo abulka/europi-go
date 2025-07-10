@@ -11,43 +11,47 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 	if numApps == 0 {
 		return -1
 	}
+	names := make([]string, numApps)
+	for i, app := range appRegistry {
+		names[i] = app.Name()
+	}
+	return ScrollingMenu(names, io, visibleLines)
+}
 
+// ScrollingMenu displays a scrollable menu of items, allows selection with K2, launch with B2
+// Returns the selected index, or -1 if exited
+func ScrollingMenu(items []string, io *hw.Controls, visibleLines int) int {
+	numItems := len(items)
+	if numItems == 0 {
+		return -1
+	}
 	selected := 0
 	lastK2 := -1 // Initialize to an invalid value to force display update on first loop
-
-	// When using tinyfont mode where we write text to the screen using the
-	// tinyfont library, we need to ClearDisplay() before writing different text
-	// (like changing the same line from highlighted to non highlighted), as
-	// this is the only way to truly erase old text content. Weirdly, using
-	// display.FillRectangle(x, y, w, h, c) to erase existing lines of text does
-	// not work. This horrible, inefficient redrawing of the screen each time is mitigated
-	// by the buffered decorator, which only redraws the screen if the content has changed.
 	for {
 		k2 := io.K2.Value()
 		updateDisplay := false
 		if k2 != lastK2 {
-			selected = (k2 * numApps) / 100
+			selected = (k2 * numItems) / 100
 			if selected < 0 {
 				selected = 0
 			}
-			if selected >= numApps {
-				selected = numApps - 1
+			if selected >= numItems {
+				selected = numItems - 1
 			}
 			lastK2 = k2
 			updateDisplay = true
 		}
-
 		// Only update the display if K2 changed, or on the first loop
 		if updateDisplay {
 			io.Display.ClearDisplay()
-			if numApps <= visibleLines {
+			if numItems <= visibleLines {
 				// No windowing, just show all items and highlight directly
 				for i := 0; i < visibleLines; i++ {
-					if i < numApps {
+					if i < numItems {
 						if i == selected {
-							io.Display.WriteLineHighlighted(i, appRegistry[i].Name())
+							io.Display.WriteLineHighlighted(i, items[i])
 						} else {
-							io.Display.WriteLine(i, appRegistry[i].Name())
+							io.Display.WriteLine(i, items[i])
 						}
 					} else {
 						io.Display.WriteLine(i, "") // Clear unused lines
@@ -59,16 +63,16 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 				if start < 0 {
 					start = 0
 				}
-				if start > numApps-visibleLines {
-					start = numApps - visibleLines
+				if start > numItems-visibleLines {
+					start = numItems - visibleLines
 				}
 				for i := 0; i < visibleLines; i++ {
 					idx := start + i
-					if idx < numApps {
+					if idx < numItems {
 						if i == (selected - start) {
-							io.Display.WriteLineHighlighted(i, appRegistry[idx].Name())
+							io.Display.WriteLineHighlighted(i, items[idx])
 						} else {
-							io.Display.WriteLine(i, appRegistry[idx].Name())
+							io.Display.WriteLine(i, items[idx])
 						}
 					} else {
 						io.Display.WriteLine(i, "") // Clear unused lines
@@ -77,7 +81,6 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 			}
 			io.Display.Display()
 		}
-
 		if io.B2.Pressed() && !io.B1.Pressed() {
 			for io.B2.Pressed() {
 				time.Sleep(10 * time.Millisecond)

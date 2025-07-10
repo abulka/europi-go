@@ -42,6 +42,7 @@ func main() {
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
 	firmware.RegisterApp(apps.Font8x8{})
+	firmware.RegisterApp(apps.MenuFun{})
 
 	firmware.SplashScreen(iox)
 	println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")

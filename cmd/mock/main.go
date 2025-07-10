@@ -73,6 +73,7 @@ func main() {
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
 	firmware.RegisterApp(apps.Font8x8{})
+	firmware.RegisterApp(apps.MenuFun{})
 
 	firmware.SplashScreen(iox)
 	logutil.Println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
@@ -88,6 +89,44 @@ func main() {
 
 		// Visually cycle highlighted menu line: 0 -> 1 -> ... -> n-1 -> ... -> 0
 		cycleThroughMenuItems(numMenuItems, iox)
+		cycleThroughMenuItems(numMenuItems, iox)
+
+		// Select menu fun app (index 3)
+		mock.SelectMenuItem(iox.K2, 3)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, false)
+		// Allow MenuFun app to run for a while
+		time.Sleep(3 * time.Second)
+		cycleThroughMenuItems(10, iox)
+		time.Sleep(3 * time.Second)
+		// select menu fun item 0
+		mock.SelectMenuItem(iox.K2, 0)
+		time.Sleep(300 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, false)
+		time.Sleep(3000 * time.Millisecond)
+		// back out of answer
+		mock.SetButtonPressed(iox.B1, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B1, false)
+		// select another item
+		mock.SelectMenuItem(iox.K2, 3)
+		time.Sleep(1000 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B2, false)
+		// back out of answer
+		mock.SetButtonPressed(iox.B1, true)
+		time.Sleep(200 * time.Millisecond)
+		mock.SetButtonPressed(iox.B1, false)
+		time.Sleep(2000 * time.Millisecond)
+
+
+		mock.ExitToMainMenu(iox)
+		logutil.Println("Returning to main menu...")
 
 		// Select Diagnostic (index 0)
 		mock.SelectMenuItem(iox.K2, 0)
