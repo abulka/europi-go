@@ -1,4 +1,4 @@
-package display
+package util
 
 import (
 	"testing"
@@ -137,14 +137,14 @@ func TestDedent_PreserveMarginTabs(t *testing.T) {
 func TestTrimDedent(t *testing.T) {
 	text := "\n  Hello there.\n  How are you?\n  Oh good.\n"
 	expect := "Hello there.\nHow are you?\nOh good."
-	if got := trimdedent(text); got != expect {
-		t.Errorf("trimdedent() failed.\nExpected: %q\nGot:      %q", expect, got)
+	if got := Trimdedent(text); got != expect {
+		t.Errorf("Trimdedent() failed.\nExpected: %q\nGot:      %q", expect, got)
 	}
 
 	text = "\n  Hello there.\n\n  How are you?\n  Oh good.\n"
 	expect = "Hello there.\n\nHow are you?\nOh good."
-	if got := trimdedent(text); got != expect {
-		t.Errorf("trimdedent() failed.\nExpected: %q\nGot:      %q", expect, got)
+	if got := Trimdedent(text); got != expect {
+		t.Errorf("Trimdedent() failed.\nExpected: %q\nGot:      %q", expect, got)
 	}
 }
 
@@ -152,7 +152,7 @@ func TestTrimDedent(t *testing.T) {
 // and remove the last newline at the end, then dedent the remaining text.
 func TestTrimDedentTrimming(t *testing.T) {
 	result := "┌─────────────────────────┐\n│Hello                    │\n│World *                  │\n│Test                     │\n└─────────────────────────┘\n"
-	expected := trimdedent(`
+	expected := Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World *                  │
@@ -164,7 +164,7 @@ func TestTrimDedentTrimming(t *testing.T) {
 	}
 
 	result = "A\nB\n"
-	expected = trimdedent(`
+	expected = Trimdedent(`
 	A
 	B
 	`)
@@ -174,7 +174,7 @@ func TestTrimDedentTrimming(t *testing.T) {
 
 	// Remove the extra leading whitespace in `expected` var, before the first newline
 	result = "A\nB\n"
-	expected = trimdedent(`    
+	expected = Trimdedent(`    
 	A
 	B
 	`)

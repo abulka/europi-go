@@ -9,21 +9,39 @@ type BufferedDisplay struct {
 	dirty                    bool        // True if buffer differs from last displayed state
 	lastDisplayedLines       []string    // Last lines actually sent to the display
 	lastDisplayedHighlighted []bool      // Last highlight state actually sent to the display
+	numLines                 int         // Number of lines (3 or 4)
 }
 
-func NewBufferedDisplayWithFont(real IOledDevice, tinyFont bool) *BufferedDisplay {
-	numLines := 3
-	if tinyFont {
-		numLines = 4 // TinyFont has 4 lines
+func NewBufferedDisplay(real IOledDevice, numLines int) *BufferedDisplay {
+	m := &BufferedDisplay{
+		Backend: real,
 	}
-	return &BufferedDisplay{
-		Backend:                  real,
-		Lines:                    make([]string, numLines),
-		highlighted:              make([]bool, numLines),
-		dirty:                    false,
-		lastDisplayedLines:       make([]string, numLines),
-		lastDisplayedHighlighted: make([]bool, numLines),
+	m.SetNumLines(numLines)
+	return m
+}
+
+func (m *BufferedDisplay) GetSSD1306() any {
+	return m.Backend.GetSSD1306()
+}
+
+func (m *BufferedDisplay) SetNumLines(numLines int) {
+	if numLines < 3 || numLines > 4 {
+		panic("numLines must be 3 or 4")
 	}
+	m.numLines = numLines
+	m.Lines = make([]string, numLines)
+	m.highlighted = make([]bool, numLines)
+	m.lastDisplayedLines = make([]string, numLines)
+	m.lastDisplayedHighlighted = make([]bool, numLines)
+
+	m.Backend.SetNumLines(numLines) // Call the underlying device's SetNumLines to ensure it knows the line count
+	
+	m.dirty = true // Mark dirty so next display updates backend
+}
+
+// NumLines returns the number of lines (3 or 4) for the display.
+func (m *BufferedDisplay) NumLines() int {
+	return m.numLines
 }
 
 // WriteLine updates the buffer for the given line and removes highlight for that line.
@@ -58,6 +76,13 @@ func (m *BufferedDisplay) ClearDisplay() {
 	m.dirty = !m.isBufferEqualToLastDisplayed()
 }
 
+// ClearBuffer resets the buffer to an empty state. No backend calls are made until Display or DisplayString.
+// Sets dirty only if the buffer differs from the last displayed state.
+func (m *BufferedDisplay) ClearBuffer() {
+	// This is the same as ClearDisplay in BufferedDisplay
+	m.ClearDisplay()
+}
+
 // DisplayString pushes all buffered changes to the backend mock and returns the current display as a string.
 // After returning, it updates the last displayed state. Used for testing.
 func (m *BufferedDisplay) DisplayString() string {
@@ -89,7 +114,7 @@ func (m *BufferedDisplay) Display() {
 
 // flushBufferToBackend pushes all buffered changes to the backend
 func (m *BufferedDisplay) flushBufferToBackend() {
-	m.Backend.ClearDisplay() // Clear the display first to avoid artifacts
+	m.Backend.ClearBuffer() // Don't use ClearDisplay() as it causes flicker
 	for i := range m.Lines {
 		if m.highlighted[i] {
 			m.Backend.WriteLineHighlighted(i, m.Lines[i])

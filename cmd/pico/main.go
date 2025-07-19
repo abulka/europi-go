@@ -1,22 +1,21 @@
 //go:build tinygo
 
-// Building only
-// tinygo build -target=pico ./cmd/pico
-// or for TinyFont support:
-// tinygo build -tags tinyfont -target=pico ./cmd/
-
 // Flashing to Raspberry Pi Pico EuroPi
+// For building only, replace `flash` with `build` in the commands below.
 // tinygo flash -target=pico --monitor ./cmd/pico
-// or for TinyFont support:
+// tinygo flash -tags lotslines -target=pico --monitor ./cmd/pico
 // tinygo flash -tags tinyfont -target=pico --monitor ./cmd/pico
+// tinygo flash -tags lotslines,tinyfont -target=pico --monitor ./cmd/pico
 
 package main
 
 import (
 	"europi/apps"
-	hw "europi/controls"
+	"europi/cmd/pico/config"
+	"europi/controls"
 	"europi/display"
 	"europi/firmware"
+	"europi/apps/pixel_animation"
 	"time"
 )
 
@@ -24,42 +23,45 @@ func main() {
 	time.Sleep(1 * time.Second)
 	println("Starting...")
 	var oled display.IOledDevice
-	if tinyFont {
+	if config.TinyFont {
 		println("Using TinyFont for OLED display.")
-		oled = display.NewOledDeviceTinyFont()
+		oled = display.NewOledDeviceTinyFont(config.NumLines)
 	} else {
 		println("Using 8x8 font for OLED display.")
-		oled = display.NewOledDevice8x8(3) // pass 3 for 3-line mode, or 4 for 4-line mode
+		oled = display.NewOledDevice8x8(config.NumLines)
 	}
 
-	// wrap with buffered display decorator
-	oled = display.NewBufferedDisplayWithFont(oled, tinyFont)
+	// Wrap with buffered display decorator (optional)
+	// Not needed anymore now that we know to use ClearBuffer() calls.
+	// But it DID reduce the amount of calls to backend dev.Display() for the menuchooser when it was coded to call Display() after every K2 knob change. Now its smarter.
+	// oled = display.NewBufferedDisplay(oled, config.NumLines)
 
-	iox := hw.SetupEuroPiWithDisplay(oled)
+	hw := controls.SetupEuroPiWithDisplay(oled)
 	println("EuroPi configured (production mode).")
 
 	// Register apps
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
-	firmware.RegisterApp(apps.Font8x8{})
+	firmware.RegisterApp(apps.FontDisplay{})
 	firmware.RegisterApp(apps.MenuFun{})
+	firmware.RegisterApp(pixel_animation.Pixels{})
+	firmware.RegisterApp(pixel_animation.Pixels2{})
+	firmware.RegisterApp(pixel_animation.Pixels3{})
 
-	firmware.SplashScreen(iox)
+	firmware.SplashScreen(hw)
 	println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
 
-	visibleLines := 3
-	if tinyFont {
-		visibleLines = 4
-	}
+	visibleLines := config.NumLines
 	for {
-		idx := firmware.MenuChooser(iox, visibleLines)
+		hw.Display.SetNumLines(visibleLines) // Ensure display is set to the correct number of lines just in case an app changed it
+		idx := firmware.MenuChooser(hw, visibleLines)
 		if idx < 0 {
-			println("Exiting main menu loop.")
-			break
+			println("Cannot Exit main menu loop.")
+			continue
 		}
 		println("Launching app:", firmware.GetAppName(idx))
-		firmware.RunApp(idx, iox)
+		firmware.RunApp(idx, hw)
 		println(firmware.GetAppName(idx), "completed. Returning to menu...")
-		firmware.SplashScreen(iox)
+		firmware.SplashScreen(hw)
 	}
 }

@@ -1,12 +1,12 @@
 package firmware
 
 import (
-	hw "europi/controls"
+	"europi/controls"
 	"time"
 )
 
 // MenuChooser displays a scrollable menu of registered apps, allows selection with K2, launch with B2
-func MenuChooser(io *hw.Controls, visibleLines int) int {
+func MenuChooser(hw *controls.Controls, visibleLines int) int {
 	numApps := len(appRegistry)
 	if numApps == 0 {
 		return -1
@@ -15,81 +15,90 @@ func MenuChooser(io *hw.Controls, visibleLines int) int {
 	for i, app := range appRegistry {
 		names[i] = app.Name()
 	}
-	return ScrollingMenu(names, io, visibleLines)
+	return ScrollingMenu(names, hw, visibleLines)
 }
 
 // ScrollingMenu displays a scrollable menu of items, allows selection with K2, launch with B2
 // Returns the selected index, or -1 if exited
-func ScrollingMenu(items []string, io *hw.Controls, visibleLines int) int {
+func ScrollingMenu(items []string, hw *controls.Controls, visibleLines int) int {
 	numItems := len(items)
 	if numItems == 0 {
 		return -1
 	}
-	selected := 0
-	lastK2 := -1 // Initialize to an invalid value to force display update on first loop
+	// Insert menu header at the top
+	menuItems := make([]string, numItems+1)
+	menuItems[0] = "--- MENU ---"
+	copy(menuItems[1:], items)
+	totalItems := numItems + 1
+	selected := 1 // Start at first selectable item
+	selectedLast := -1
+	lastK2 := -1
 	for {
-		k2 := io.K2.Value()
+		k2 := hw.K2.Value()
 		updateDisplay := false
 		if k2 != lastK2 {
-			selected = (k2 * numItems) / 100
-			if selected < 0 {
-				selected = 0
+			bins := totalItems - 1
+			selected = 1 + ((k2 * bins) / 101)
+			if selected < 1 {
+				selected = 1
 			}
-			if selected >= numItems {
-				selected = numItems - 1
+			if selected >= totalItems {
+				selected = totalItems - 1
 			}
 			lastK2 = k2
-			updateDisplay = true
+			if selected != selectedLast {
+				selectedLast = selected
+				updateDisplay = true
+			}
 		}
-		// Only update the display if K2 changed, or on the first loop
 		if updateDisplay {
-			io.Display.ClearDisplay()
-			if numItems <= visibleLines {
-				// No windowing, just show all items and highlight directly
+			hw.Display.ClearBuffer()
+			if totalItems <= visibleLines {
 				for i := 0; i < visibleLines; i++ {
-					if i < numItems {
-						if i == selected {
-							io.Display.WriteLineHighlighted(i, items[i])
+					if i < totalItems {
+						if i == selected && i != 0 {
+							hw.Display.WriteLineHighlighted(i, menuItems[i])
 						} else {
-							io.Display.WriteLine(i, items[i])
+							hw.Display.WriteLine(i, menuItems[i])
 						}
 					} else {
-						io.Display.WriteLine(i, "") // Clear unused lines
+						hw.Display.WriteLine(i, "")
 					}
 				}
 			} else {
-				// Windowing logic for long menus
 				start := selected - visibleLines/2
 				if start < 0 {
 					start = 0
 				}
-				if start > numItems-visibleLines {
-					start = numItems - visibleLines
+				if start > totalItems-visibleLines {
+					start = totalItems - visibleLines
 				}
 				for i := 0; i < visibleLines; i++ {
 					idx := start + i
-					if idx < numItems {
-						if i == (selected - start) {
-							io.Display.WriteLineHighlighted(i, items[idx])
+					if idx < totalItems {
+						if idx == selected && idx != 0 {
+							hw.Display.WriteLineHighlighted(i, menuItems[idx])
 						} else {
-							io.Display.WriteLine(i, items[idx])
+							hw.Display.WriteLine(i, menuItems[idx])
 						}
 					} else {
-						io.Display.WriteLine(i, "") // Clear unused lines
+						hw.Display.WriteLine(i, "")
 					}
 				}
 			}
-			io.Display.Display()
+			hw.Display.Display()
 		}
-		if io.B2.Pressed() && !io.B1.Pressed() {
-			for io.B2.Pressed() {
+
+		if hw.B2.Pressed() && !hw.B1.Pressed() {
+			for hw.B2.Pressed() {
 				time.Sleep(10 * time.Millisecond)
 			}
-			return selected
+			// Return selected-1 so 0 is first app, etc. Never return 0 (header)
+			return selected - 1
 		}
-		if ShouldExit(io) {
+		if ShouldExit(hw) {
 			return -1
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 }

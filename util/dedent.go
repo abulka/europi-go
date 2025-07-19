@@ -1,4 +1,4 @@
-package display
+package util
 
 import "strings"
 
@@ -56,7 +56,7 @@ func dedent(s string) string {
 }
 
 // trimdedent trims only the leading and trailing newlines, leaving tabs and other whitespace alone, then dedents.
-func trimdedent(s string) string {
+func Trimdedent(s string) string {
 	// Remove any leading whitespace (spaces, tabs) before the first newline
 	i := 0
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {

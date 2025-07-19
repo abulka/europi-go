@@ -62,7 +62,7 @@ func (k *Knob) Value() int {
 
 // AnalogueInput abstraction
 type AnalogueInput struct {
-	adc    machine.ADC
+	adc    machine.ADC // 0..65520
 	reader *util.VoltageReader
 }
 

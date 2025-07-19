@@ -13,14 +13,45 @@ import (
 
 type SSD1306Adapter struct {
 	dev ssd1306.Device
+	// lineYs holds the Y positions for each line in 3-line or 4-line mode, coord is the top of the font, drawn to bottom
+	lineYs   []int16
+	numLines int // Number of lines (3 or 4)
+}
+
+// GetSSD1306 returns the underlying SSD1306 device.
+// Its really a *ssd1306.Device 
+func (o *SSD1306Adapter) GetSSD1306() any {
+	return &o.dev
 }
 
 func (o *SSD1306Adapter) ClearDisplay() {
 	o.dev.ClearDisplay()
 }
 
+func (o *SSD1306Adapter) ClearBuffer() {
+	o.dev.ClearBuffer()
+}
+
 func (o *SSD1306Adapter) Display() {
 	o.dev.Display()
+}
+
+// SetNumLines sets the number of lines for the display (3 or 4).
+func (o *SSD1306Adapter) SetNumLines(numLines int) {
+	if numLines < 3 || numLines > 4 {
+		panic("numLines must be 3 or 4")
+	}
+	if numLines == 3 {
+		o.lineYs = []int16{10, 20, 30} // y pixel coordinate of the BOTTOM of each character (for tinyfont mode)
+	} else {
+		o.lineYs = []int16{7, 15, 23, 31}
+	}
+
+	o.numLines = numLines
+}
+
+func (o *SSD1306Adapter) NumLines() int {
+	return o.numLines
 }
 
 /*
@@ -54,11 +85,26 @@ the overlap as expected, the text may not show. The font rendering may not
 overwrite all pixels, especially if the clear rectangle and the font's bounding
 box do not match up.
 
+Font Size and Positioning:
+
+Proggy TinySZ8pt7b is a 6x10 font, which means it has a bounding box of 6 pixels wide and 10 pixels high.
+
+https://pkg.go.dev/tinygo.org/x/tinyfont@v0.6.0/proggy
+
+Should only fill three lines in a 32 pixel high display. But if we don't
+mind losing the spacing between lines, we can use the full 32 pixels
+height for four lines.
+
 */
 
 func (o *SSD1306Adapter) WriteLine(lineNum int, text string) {
+	if lineNum < 0 || lineNum >= len(o.lineYs) {
+		return
+	}
+	y := o.lineYs[lineNum]
+
 	// Calculate position for line number (assuming 10px per line)
-	y := int16(lineNum*10 + 10) // +10 for baseline offset
+	// y := int16(lineNum*10 + 10) // +10 for baseline offset
 
 	// 1. Clear old text and any possible highlight area (full width: 128 pixels)
 	// ABANDONED because it stops text appearing?  See next diagnostic comment
@@ -69,7 +115,7 @@ func (o *SSD1306Adapter) WriteLine(lineNum int, text string) {
 
 	// 2. test - just clear the top line only each time - WOW this proves that once you clear the top line
 	// then try to write to it, no text is written - WEIRD!
-	// 
+	//
 	// clearY := int16(0) // Always clear the top line
 	// clearH := int16(10) // Height of the line to clear (10 pixels)
 	// fillRectSafe(o.dev, 0, clearY, int16(128), clearH, ColorBlack)
@@ -92,7 +138,7 @@ func (o *SSD1306Adapter) WriteLineHighlighted(lineNum int, text string) {
 }
 
 // NewOledDeviceTinyFont sets up the I2C and SSD1306 display and returns the display instance.
-func NewOledDeviceTinyFont() IOledDevice {
+func NewOledDeviceTinyFont(numLines int) IOledDevice {
 	i2c := machine.I2C0
 	i2c.Configure(machine.I2CConfig{
 		Frequency: 400000,
@@ -105,5 +151,9 @@ func NewOledDeviceTinyFont() IOledDevice {
 		Width:   128,
 		Height:  32,
 	})
-	return &SSD1306Adapter{dev: dev}
+	adapter := &SSD1306Adapter{
+		dev: dev,
+	}
+	adapter.SetNumLines(numLines)
+	return adapter
 }

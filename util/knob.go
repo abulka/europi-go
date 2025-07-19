@@ -32,7 +32,7 @@ func NewSmartKnobProcessor() *SmartKnobProcessor {
 
 func (k *SmartKnobProcessor) Process(rawValue int) int {
 	filtered := k.Filter.Update(rawValue)
-	mapped := 99 - CalibrateKnobValue(filtered, 0, 65535, 0, 99)
+	mapped := 100 - CalibrateKnobValue(filtered, 0, 65535, 0, 100) // maps to 0..100
 	now := time.Now()
 
 	if k.LastMapped == -1 {

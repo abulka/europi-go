@@ -4,8 +4,14 @@ package display
 import "image/color"
 
 type IOledDevice interface {
+	// 3 or 4 lines for OLED display
+	NumLines() int
+	SetNumLines(n int)
+	// Returns the underlying SSD1306 device if available, otherwise nil (for mocks)
+	GetSSD1306() any
 	// ClearDisplay clears the display content.
 	ClearDisplay()
+	ClearBuffer()
 	// Display updates the display with the current content.
 	Display()
 	// WriteLine writes a line of text to the display at the specified line number.

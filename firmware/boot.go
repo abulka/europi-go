@@ -2,7 +2,7 @@
 package firmware
 
 import (
-	hw "europi/controls"
+	"europi/controls"
 	"time"
 )
 
@@ -10,7 +10,7 @@ const version = "v0.01"
 
 type App interface {
 	Name() string
-	Run(io *hw.Controls)
+	Run(hw *controls.Controls)
 }
 
 var appRegistry []App
@@ -30,18 +30,18 @@ func NumRegisteredApps() int {
 	return len(appRegistry)
 }
 
-func RunApp(idx int, io *hw.Controls) {
+func RunApp(idx int, hw *controls.Controls) {
 	if idx >= 0 && idx < len(appRegistry) {
-		appRegistry[idx].Run(io)
+		appRegistry[idx].Run(hw)
 	}
 }
 
 // ShouldExit returns true if both B1 and B2 are pressed and held for 2s
 var doubleButtonPressLastMs int64 = 0
 
-func ShouldExit(io *hw.Controls) bool {
+func ShouldExit(hw *controls.Controls) bool {
 	now := time.Now().UnixMilli()
-	if io.B1.Pressed() && io.B2.Pressed() {
+	if hw.B1.Pressed() && hw.B2.Pressed() {
 		if doubleButtonPressLastMs == 0 {
 			doubleButtonPressLastMs = now
 		} else if now-doubleButtonPressLastMs >= 2000 {
@@ -54,11 +54,11 @@ func ShouldExit(io *hw.Controls) bool {
 	return false
 }
 
-func SplashScreen(io *hw.Controls) {
-	io.Display.ClearDisplay()
-	io.Display.WriteLine(0, "EuroPi Simplified")
-	io.Display.WriteLine(1, "by TinyGo "+version)
-	io.Display.Display()
-	time.Sleep(2 * time.Second)
-	io.Display.ClearDisplay()
+func SplashScreen(hw *controls.Controls) {
+	hw.Display.ClearDisplay()
+	hw.Display.WriteLine(0, "EuroPi Simplified")
+	hw.Display.WriteLine(1, "by TinyGo "+version)
+	hw.Display.Display()
+	time.Sleep(1 * time.Second)
+	hw.Display.ClearDisplay()
 }

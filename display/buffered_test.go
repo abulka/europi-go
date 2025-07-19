@@ -2,6 +2,7 @@
 package display
 
 import (
+	"europi/util"
 	"testing"
 )
 
@@ -9,15 +10,15 @@ func TestBuffered(t *testing.T) {
 	// var real IOledDisplay = &SSD1306{}
 	// buffered := &BufferedDisplay{Backend: real}
 
-	var real IOledDevice = NewMockOledDeviceWithFont(false)
-	var oled *BufferedDisplay = NewBufferedDisplayWithFont(real, false)
+	var real IOledDevice = NewMockOledDevice(3, 16)
+	var oled *BufferedDisplay = NewBufferedDisplay(real, 3)
 	oled.ClearDisplay()
 	oled.WriteLine(0, "Hello")
 	oled.WriteLine(1, "World")
 	oled.WriteLine(2, "Test")
 	str := oled.DisplayString()
 	// Check if display output is as expected
-	expected := trimdedent(`
+	expected := util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World                    │
@@ -44,7 +45,7 @@ func TestBuffered(t *testing.T) {
 	oled.WriteLineHighlighted(1, "World")
 	str = oled.DisplayString()
 	// Check if highlighted line is marked
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World *                  │
@@ -64,11 +65,11 @@ func TestBuffered(t *testing.T) {
 	}
 
 	// highlight a different line
-	oled.WriteLine(1, "World") // Remove highlight
+	oled.WriteLine(1, "World")           // Remove highlight
 	oled.WriteLineHighlighted(2, "Test") // Highlight the third line
 	str = oled.DisplayString()
 	// Check if second line is now highlighted
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World                    │
@@ -83,7 +84,7 @@ func TestBuffered(t *testing.T) {
 	oled.WriteLine(2, "Test") // Remove highlight
 	str = oled.DisplayString()
 	// Check if highlight is cleared
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World                    │
@@ -105,7 +106,7 @@ func TestBuffered(t *testing.T) {
 	// Clear display
 	oled.ClearDisplay()
 	str = oled.DisplayString()
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│                         │
 	│                         │
@@ -126,7 +127,7 @@ func TestBuffered(t *testing.T) {
 	// Test using WriteLineHighlighted - bypasses the mutual exclusion logic of HighlightLn
 	oled.WriteLineHighlighted(0, "Highlighted")
 	str = oled.DisplayString()
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│Highlighted *            │
 	│                         │
@@ -138,7 +139,7 @@ func TestBuffered(t *testing.T) {
 	}
 	oled.WriteLineHighlighted(1, "Highlighted2")
 	str = oled.DisplayString()
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│Highlighted *            │
 	│Highlighted2 *           │
@@ -168,14 +169,14 @@ func TestBuffered(t *testing.T) {
 // Test if ClearDisplay() then we write the same content then buffered decorator
 // should not trigger a full redraw when we call DisplayString() again.
 func TestBufferedClearDisplay(t *testing.T) {
-	real := NewMockOledDeviceWithFont(false)
-	oled := NewBufferedDisplayWithFont(real, false)
+	real := NewMockOledDevice(3, 16)
+	oled := NewBufferedDisplay(real, 3)
 	oled.ClearDisplay()
 	oled.WriteLine(0, "Hello")
 	oled.WriteLine(1, "World")
 	oled.WriteLine(2, "Test")
 	str := oled.DisplayString()
-	expected := trimdedent(`
+	expected := util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World                    │
@@ -208,7 +209,7 @@ func TestBufferedClearDisplay(t *testing.T) {
 	// Now write something different
 	oled.WriteLine(0, "New Line")
 	str = oled.DisplayString()
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│New Line                 │
 	│World                    │

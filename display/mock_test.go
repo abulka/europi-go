@@ -2,17 +2,14 @@
 package display
 
 import (
+	"europi/util"
 	"testing"
 )
 
-// io.Display.ClearDisplay() // TODO arguably if ClearDisplay then we write the same content then buffered decorator should not trigger a full redraw
-
-// TODO - move buffered display tests to a separate file
-
 func TestDisplayBasics(t *testing.T) {
-	oled := NewMockOledDeviceWithFont(false)
+	oled := NewMockOledDevice(3, 16)
 	if oled == nil {
-		t.Error("NewMockOledDeviceWithFont returned nil")
+		t.Error("NewMockOledDevice returned nil")
 		return
 	}
 	if len(oled.LinesRaw) != 3 {
@@ -45,14 +42,14 @@ func TestDisplayBasics(t *testing.T) {
 }
 
 func TestDisplay(t *testing.T) {
-	oled := NewMockOledDeviceWithFont(false)
+	oled := NewMockOledDevice(3, 16)
 	oled.ClearDisplay()
 	oled.WriteLine(0, "Hello")
 	oled.WriteLine(1, "World")
 	oled.WriteLine(2, "Test")
 	str := oled.DisplayString()
 	// Check if display output is as expected
-	expected := trimdedent(`
+	expected := util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World                    │
@@ -65,7 +62,7 @@ func TestDisplay(t *testing.T) {
 	oled.WriteLineHighlighted(1, "World")
 	str = oled.DisplayString()
 	// Check if highlighted line is marked
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World *                  │
@@ -78,7 +75,7 @@ func TestDisplay(t *testing.T) {
 	oled.WriteLine(1, "World") // Remove highlight
 	str = oled.DisplayString()
 	// Check if highlight is cleared
-	expected = trimdedent(`
+	expected = util.Trimdedent(`
 	┌─────────────────────────┐
 	│Hello                    │
 	│World                    │
@@ -89,5 +86,3 @@ func TestDisplay(t *testing.T) {
 		t.Errorf("Expected cleared highlight display output to be:\n%s\nGot:\n%s", expected, str)
 	}
 }
-
-

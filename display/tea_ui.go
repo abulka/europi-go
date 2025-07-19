@@ -15,21 +15,44 @@ type MockOledDeviceTea struct {
 	LinesRaw []string // like a real OLED, but in memory
 	program  *tea.Program
 	LineLen  int // max chars per line (16 for 8x8, 21 for TinyFont)
+	numLines int // number of lines (3 or 4)
 }
 
-func NewMockOledDeviceTeaWithFont(tinyFont bool) *MockOledDeviceTea {
-	lineLen := 16
-	if tinyFont {
-		lineLen = 21
-	}
-	numLines := 3
-	if tinyFont {
-		numLines = 4
-	}
-	m := &MockOledDeviceTea{LineLen: lineLen, LinesRaw: make([]string, numLines)}
-	m.program = tea.NewProgram(&oledModel{lines: m.LinesRaw})
-	go func() { _, _ = m.program.Run() }()
+// GetSSD1306 returns nil for the mock Bubble Tea device.
+// Its really a *ssd1306.Device but we return nil here since it's a mock
+func (m *MockOledDeviceTea) GetSSD1306() any {
+	return nil
+}
+
+func NewMockOledDeviceTea(numLines, lineLen int) *MockOledDeviceTea {
+	m := &MockOledDeviceTea{LineLen: lineLen}
+	m.SetNumLines(numLines)
+	// Use AltScreen for proper terminal cleanup
+	m.program = tea.NewProgram(
+		&oledModel{lines: m.LinesRaw},
+		tea.WithAltScreen(),
+	)
+	go func() {
+		// Run returns when the program exits (including on Ctrl+C)
+		_, err := m.program.Run()
+		if err != nil {
+			logutil.Println("Bubble Tea program exited with error:", err)
+		}
+	}()
 	return m
+}
+
+func (m *MockOledDeviceTea) SetNumLines(numLines int) {
+	if numLines < 3 || numLines > 4 {
+		panic("numLines must be 3 or 4")
+	}
+	m.numLines = numLines
+	m.LinesRaw = make([]string, numLines) // reset lines to empty
+	m.update()
+}
+
+func (m *MockOledDeviceTea) NumLines() int {
+	return m.numLines
 }
 
 func (m *MockOledDeviceTea) ClearDisplay() {
@@ -37,6 +60,11 @@ func (m *MockOledDeviceTea) ClearDisplay() {
 		m.LinesRaw[i] = ""
 	}
 	m.update()
+}
+
+func (m *MockOledDeviceTea) ClearBuffer() {
+	// In a mock, ClearBuffer is the same as ClearDisplay
+	m.ClearDisplay()
 }
 
 func (m *MockOledDeviceTea) WriteLine(lineNum int, text string) {

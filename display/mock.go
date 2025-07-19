@@ -8,24 +8,42 @@ import "bytes"
 type MockOledDevice struct {
 	LinesRaw []string // like a real OLED, but in memory
 	LineLen  int      // max chars per line (16 for 8x8, 21 for TinyFont)
+	numLines int      // number of lines (3 or 4)
 }
 
-func NewMockOledDeviceWithFont(tinyFont bool) *MockOledDevice {
-	lineLen := 16
-	if tinyFont {
-		lineLen = 21
+// GetSSD1306 returns nil for the mock device.
+// Its really a *ssd1306.Device but we return nil here since it's a mock
+func (m *MockOledDevice) GetSSD1306() any {
+	return nil
+}
+
+func NewMockOledDevice(numLines, lineLen int) *MockOledDevice {
+	m := &MockOledDevice{LineLen: lineLen}
+	m.SetNumLines(numLines)
+	return m
+}
+
+func (m *MockOledDevice) SetNumLines(numLines int) {
+	if numLines < 3 || numLines > 4 {
+		panic("numLines must be 3 or 4")
 	}
-	numLines := 3
-	if tinyFont {
-		numLines = 4 // TinyFont has 4 lines
-	}
-	return &MockOledDevice{LineLen: lineLen, LinesRaw: make([]string, numLines)}
+	m.numLines = numLines
+	m.LinesRaw = make([]string, numLines) // reset lines to empty
+}
+
+func (m *MockOledDevice) NumLines() int {
+	return m.numLines
 }
 
 func (m *MockOledDevice) ClearDisplay() {
 	for i := range m.LinesRaw {
 		m.LinesRaw[i] = ""
 	}
+}
+
+func (m *MockOledDevice) ClearBuffer() {
+	// In a mock, ClearBuffer is the same as ClearDisplay
+	m.ClearDisplay()
 }
 
 func (m *MockOledDevice) WriteLine(lineNum int, text string) {

@@ -1,25 +1,25 @@
 //go:build !tinygo
 
 // Run with go run ./cmd/mock
-// Run with go run ./cmd/mock -tinyfont
-// Run with go run ./cmd/mock -tea
-// Run with go run ./cmd/mock -tea -tinyfont
+// Run with go run ./cmd/mock -tea -tinyfont -lotslines
 
 package main
 
 import (
 	"europi/apps"
-	hw "europi/controls"
+	"europi/controls"
 	"europi/display"
 	"europi/firmware"
 	"europi/logutil"
 	"europi/mock"
 	"flag"
+	"strconv"
 	"time"
 )
 
 var tea = flag.Bool("tea", false, "use Bubble Tea OLED simulation")
 var tinyFont = flag.Bool("tinyfont", false, "simulate TinyFont mode (21 chars per line)")
+var lotsLines = flag.Bool("lotslines", false, "simulate 4 lines of text (default is 3 lines)")
 
 func main() {
 	flag.Parse()
@@ -28,54 +28,47 @@ func main() {
 	time.Sleep(1 * time.Second)
 	logutil.Println("Starting...")
 
-	visibleLines := 3
+	numLines := 3
+    if *lotsLines {
+        numLines = 4
+    }
+	lineLen := 16
 	if *tinyFont {
-		visibleLines = 4
+		lineLen = 21 // TinyFont has 21 chars per line
 	}
 
 	// Always use buffered display for all mock modes (Tea or not)
-	buffered := true // Set to false to disable buffering for all modes
+	buffered := false // Set to false to disable buffering for all modes
 
 	var oled display.IOledDevice
 	if *tea {
-		base := display.NewMockOledDeviceTeaWithFont(*tinyFont)
-		if buffered {
-			oled = display.NewBufferedDisplayWithFont(base, *tinyFont)
-		} else {
-			oled = base
-		}
+		oled = display.NewMockOledDeviceTea(numLines, lineLen)
 	} else {
-		base := display.NewMockOledDeviceWithFont(*tinyFont)
-		if buffered {
-			oled = display.NewBufferedDisplayWithFont(base, *tinyFont)
-		} else {
-			oled = base
-		}
+		oled = display.NewMockOledDevice(numLines, lineLen)
 	}
-	iox := hw.SetupMockEuroPiWithDisplay(oled)
+	if buffered {
+		oled = display.NewBufferedDisplay(oled, numLines)
+	}
+	hw := controls.SetupMockEuroPiWithDisplay(oled)
+	mode := "MOCK "
 	if *tea {
-		mode := "MOCK TEA ☕️ mode"
-		if buffered {
-			mode += ", buffered"
-		}
-		msg := "EuroPi configured (" + mode + ")."
-		println(msg)
-		logutil.Println(msg)
+		mode += "TEA ☕️ "
 	} else {
-		mode := "MOCK 😆 mode"
-		if buffered {
-			mode += ", buffered"
-		}
-		logutil.Println("EuroPi configured (" + mode + ").")
+		mode += "😆 "
 	}
+	if buffered {
+		mode += ", buffered"
+	}
+	msg := "EuroPi configured (" + mode + ").NumLines: " + strconv.Itoa(hw.Display.NumLines())
+	logutil.Println(msg)
 
 	// Register apps
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
-	firmware.RegisterApp(apps.Font8x8{})
+	firmware.RegisterApp(apps.FontDisplay{})
 	firmware.RegisterApp(apps.MenuFun{})
 
-	firmware.SplashScreen(iox)
+	firmware.SplashScreen(hw)
 	logutil.Println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
 
 	// Simulate user input
@@ -88,118 +81,106 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 
 		// Visually cycle highlighted menu line: 0 -> 1 -> ... -> n-1 -> ... -> 0
-		cycleThroughMenuItems(numMenuItems, iox)
-		cycleThroughMenuItems(numMenuItems, iox)
+		// cycleThroughMenuItems(numMenuItems, hw)
+		// time.Sleep(1 * time.Second)
 
 		// Select menu fun app (index 3)
-		mock.SelectMenuItem(iox.K2, 3)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, false)
-		// Allow MenuFun app to run for a while
-		time.Sleep(3 * time.Second)
-		cycleThroughMenuItems(10, iox)
-		time.Sleep(3 * time.Second)
-		// select menu fun item 0
-		mock.SelectMenuItem(iox.K2, 0)
-		time.Sleep(300 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, false)
-		time.Sleep(3000 * time.Millisecond)
-		// back out of answer
-		mock.SetButtonPressed(iox.B1, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B1, false)
-		// select another item
-		mock.SelectMenuItem(iox.K2, 3)
-		time.Sleep(1000 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, false)
-		// back out of answer
-		mock.SetButtonPressed(iox.B1, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B1, false)
-		time.Sleep(2000 * time.Millisecond)
+		mock.SelectMenuItem(hw.K2, 0)
+		time.Sleep(1 * time.Second)
+		mock.SelectMenuItem(hw.K2, 1) 
+		time.Sleep(1 * time.Second)
+		mock.SelectMenuItem(hw.K2, 2)
+		time.Sleep(1 * time.Second)
+		mock.SelectMenuItem(hw.K2, 3)
+		time.Sleep(2 * time.Second)
+		
+		// Press B2 to select the app
+		mock.ButtonPress(hw.B2)
+		time.Sleep(2 * time.Second)
 
+		// MenuFun app
+		mock.SelectMenuItem(hw.K2, 0) // Select first item
+		time.Sleep(2 * time.Second)
+		mock.ButtonPress(hw.B2)
+		time.Sleep(1 * time.Second)
+		mock.ButtonPress(hw.B1)
+		time.Sleep(1 * time.Second)
 
-		mock.ExitToMainMenu(iox)
+		mock.SelectMenuItem(hw.K2, 1) // Select another item
+		time.Sleep(2 * time.Second)
+		mock.ButtonPress(hw.B2)
+		time.Sleep(1 * time.Second)
+		mock.ButtonPress(hw.B1)
+		time.Sleep(1 * time.Second)
+
+		mock.ExitToMainMenu(hw)
 		logutil.Println("Returning to main menu...")
 
-		// Select Diagnostic (index 0)
-		mock.SelectMenuItem(iox.K2, 0)
-		time.Sleep(300 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, false)
+		// Select Diagnostic app (index 0)
+		mock.SelectMenuItem(hw.K2, 0)
+		time.Sleep(2 * time.Second)
+		mock.ButtonPress(hw.B2)
+		time.Sleep(1 * time.Second)
 
-		// Allow diagnostic app to run for a while - fiddle with some knobs
-		mock.SetKnobValue(iox.K2, 10)
+		// Allow diagnostic App to run for a while - fiddle with some knobs
+		mock.SetKnobValue(hw.K2, 10)
 		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, true)
+		mock.SetButtonPressed(hw.B2, true)
 		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, false)
+		mock.SetButtonPressed(hw.B2, false)
 		time.Sleep(200 * time.Millisecond)
-		mock.SetAnalogueInputValue(iox.AIN, 2.5)
+		mock.SetAnalogueInputValue(hw.AIN, 2.5)
 		time.Sleep(200 * time.Millisecond)
-		mock.SetDigitalInputValue(iox.DIN, true)
+		mock.SetDigitalInputValue(hw.DIN, true)
 		time.Sleep(600 * time.Millisecond)
-		mock.SetDigitalInputValue(iox.DIN, false)
+		mock.SetDigitalInputValue(hw.DIN, false)
 		time.Sleep(200 * time.Millisecond)
-		mock.SetKnobValue(iox.K2, 0)
-		time.Sleep(200 * time.Millisecond)
-
-		mock.ExitToMainMenu(iox)
-
-		// Select HelloWorld (index 1)
-		mock.SelectMenuItem(iox.K2, 1)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, false)
-
-		// Allow other app to run for a while
+		mock.SetKnobValue(hw.K2, 0)
 		time.Sleep(200 * time.Millisecond)
 
-		mock.ExitToMainMenu(iox)
+		mock.ExitToMainMenu(hw)
 
-		// Select Font8x8 (index 2)
-		mock.SelectMenuItem(iox.K2, 2)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, true)
-		time.Sleep(200 * time.Millisecond)
-		mock.SetButtonPressed(iox.B2, false)
+		// Select HelloWorld App (index 1)
+		mock.SelectMenuItem(hw.K2, 1)
+		time.Sleep(2 * time.Second)
+		mock.ButtonPress(hw.B2)
+		time.Sleep(1 * time.Second)
 
-		// Allow Font8x8 app to run for a while
-		time.Sleep(3 * time.Second)
+		mock.ExitToMainMenu(hw)
+
+		// Select Font App (index 2)
+		mock.SelectMenuItem(hw.K2, 2)
+		time.Sleep(2 * time.Second)
+		mock.ButtonPress(hw.B2)
+		time.Sleep(1 * time.Second)
+
+		mock.ExitToMainMenu(hw)
 
 		logutil.Println("Mock input simulation completed.")
 	}()
 	for {
-		idx := firmware.MenuChooser(iox, visibleLines)
+		idx := firmware.MenuChooser(hw, numLines)
 		if idx < 0 {
 			logutil.Println("Exiting main menu loop.")
 			break
 		}
 		logutil.Println("Launching app:", firmware.GetAppName(idx))
-		firmware.RunApp(idx, iox)
+		firmware.RunApp(idx, hw)
 		logutil.Println(firmware.GetAppName(idx), "completed. Returning to menu...")
-		firmware.SplashScreen(iox)
+		firmware.SplashScreen(hw)
 	}
 }
 
-func cycleThroughMenuItems(numMenuItems int, iox *hw.Controls) {
+func cycleThroughMenuItems(numMenuItems int, hw *controls.Controls) {
 	var cycle []int
 	for i := 0; i < numMenuItems; i++ {
 		cycle = append(cycle, i)
 	}
-	for i := numMenuItems - 2; i > 0; i-- {
+	for i := numMenuItems - 2; i >= 0; i-- {
 		cycle = append(cycle, i)
 	}
 	for _, idx := range cycle {
-		mock.SelectMenuItem(iox.K2, idx)
+		mock.SelectMenuItem(hw.K2, idx)
 		time.Sleep(400 * time.Millisecond)
 	}
 }

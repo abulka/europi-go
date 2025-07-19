@@ -17,10 +17,22 @@ type SSD1306Adapter8x8 struct {
 	// Highlight margins (in pixels)
 	HighlightMarginTop    int16
 	HighlightMarginBottom int16
+	// numLines is the number of lines (3 or 4) for the display
+	numLines int
+}
+
+// GetSSD1306 returns the underlying SSD1306 device.
+// Its really a *ssd1306.Device 
+func (o *SSD1306Adapter8x8) GetSSD1306() any {
+	return &o.dev
 }
 
 func (o *SSD1306Adapter8x8) ClearDisplay() {
 	o.dev.ClearDisplay()
+}
+
+func (o *SSD1306Adapter8x8) ClearBuffer() {
+	o.dev.ClearBuffer()
 }
 
 func (o *SSD1306Adapter8x8) Display() {
@@ -45,14 +57,17 @@ func NewOledDevice8x8(numLines int) IOledDevice {
 	adapter := &SSD1306Adapter8x8{
 		dev: dev,
 	}
-	adapter.SetLineMode(numLines)
+	adapter.SetNumLines(numLines)
 	return adapter
 }
 
-// SetLineMode switches between 3-line and 4-line modes and sets highlight margins
-func (o *SSD1306Adapter8x8) SetLineMode(numLines int) {
+// SetNumLines switches between 3-line and 4-line modes and sets highlight margins
+func (o *SSD1306Adapter8x8) SetNumLines(numLines int) {
+	if numLines < 3 || numLines > 4 {
+		panic("numLines must be 3 or 4")
+	}
 	if numLines == 3 {
-		o.lineYs = []int16{2, 12, 22}
+		o.lineYs = []int16{2, 12, 22} // y pixel coordinate of the TOP of each character (for 8x8 font mode)
 		o.HighlightMarginTop = 1
 		o.HighlightMarginBottom = 1
 	} else {
@@ -60,6 +75,11 @@ func (o *SSD1306Adapter8x8) SetLineMode(numLines int) {
 		o.HighlightMarginTop = 0
 		o.HighlightMarginBottom = 0
 	}
+	o.numLines = numLines
+}
+
+func (o *SSD1306Adapter8x8) NumLines() int {
+	return o.numLines
 }
 
 func (o *SSD1306Adapter8x8) WriteLine(lineNum int, text string) {
@@ -67,11 +87,14 @@ func (o *SSD1306Adapter8x8) WriteLine(lineNum int, text string) {
 		return
 	}
 	y := o.lineYs[lineNum]
+	// println("WriteLine", lineNum, "at y:", y, "text:", text)
 
 	// Clear old text and any possible highlight area (full width: 128 pixels)
-	clearY := y - o.HighlightMarginTop
-	clearH := int16(8) + o.HighlightMarginTop + o.HighlightMarginBottom
-	fillRectSafe(o.dev, 0, clearY, int16(128), clearH, ColorBlack)
+	// SEEMS THAT YOU DON'T EVEN NEED THESE LINES FOR MENU HIGHLIGHTING ETC TO WORK
+	// clearY := y - o.HighlightMarginTop
+	// clearH := int16(8) + o.HighlightMarginTop + o.HighlightMarginBottom
+	// clearH = 8 //test - 7 is ok, as soon >=8 huge black areas appear on OLED ❌
+	// fillRectSafe(o.dev, 0, clearY, int16(128), clearH, ColorBlack)
 
 	DrawFont8x8Text(o.dev, 0, y, text, ColorWhite)
 }
@@ -81,6 +104,7 @@ func (o *SSD1306Adapter8x8) WriteLineHighlighted(lineNum int, text string) {
 		return
 	}
 	y := o.lineYs[lineNum]
+	// println("WriteLine", lineNum, "at y:", y, "text:", text, "(highlighted)")
 	textW := int16(len(text) * 8)
 	if textW > 128 {
 		textW = 128
