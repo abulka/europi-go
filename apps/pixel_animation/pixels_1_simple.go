@@ -14,7 +14,7 @@ type Pixels struct{}
 func (Pixels) Name() string { return "Pixels 1 Loop" }
 
 func (Pixels) Run(hw *controls.Controls) {
-	ssd, ok := hw.Display.GetSSD1306().(SSD1306Device)
+	ssd, ok := hw.Display.GetSSD1306().(display.ISSD1306Device)
 	if !ok {
 		println("No SSD1306 device found or device does not support pixel operations, cannot run Pixels app")
 		return

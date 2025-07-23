@@ -15,8 +15,24 @@ type DigitalInput struct {
 	inverted bool
 }
 
+/*
+EuroPi documentation says: Both the digital input and buttons are normally high,
+and 'pulled' low when on, so the EuroPi firmware code is flipped to be more
+intuitive (high when on, low when off)
+https://github.com/Allen-Synthesis/EuroPi/blob/main/software/firmware/europi_hardware.py
+
+PinInputPulldown makes the pin default to low (0V) when not driven.
+
+For "normally high" (default high when not pressed), you want PinInputPullup,
+which pulls the pin up to high (Vcc) when not driven.
+
+Crucially, PinInputPullup does not change how the pin.Get() function works. It
+will always report true for a high voltage and false for a low voltage. You've
+correctly told the hardware what its resting state is, but you haven't yet told
+the software what to do with that information.
+*/
 func NewDigitalInput(pin machine.Pin, inverted bool) *DigitalInput {
-	pin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
+	pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	return &DigitalInput{pin: pin, inverted: inverted}
 }
 
@@ -26,6 +42,41 @@ func (d *DigitalInput) Get() bool {
 		return !v
 	}
 	return v
+}
+
+/* 
+SetEdgeHandlers replaces OnRise and OnFall. It configures a single interrupt
+ handler to fire on both rising and falling edges.
+
+p.Get() returns the current state of the pin. It will always report true for a
+high voltage and false for a low voltage - regardless of whether you configured
+it as pull-up or pull-down. Thats why we use d.Get() which contains the
+inversion logic. Now, if the d.Get() returns true, it means the
+'logical' pin went high (despite the physical pin being pulled down). And if
+the d.Get() returns false, it means the 'logical' pin went low (despite the
+physical pin being pulled up).
+*/
+func (d *DigitalInput) SetEdgeHandlers(riseCallback func(), fallCallback func()) {
+	// Define a single interrupt handler that checks the pin's state.
+	unifiedHandler := func(p machine.Pin) {
+		// CRITICAL: Use d.Get() which contains the inversion logic.
+		if d.Get() {
+			if riseCallback != nil {
+				riseCallback()
+			}
+		} else {
+			if fallCallback != nil {
+				fallCallback()
+			}
+		}		
+	}
+
+	// Set the interrupt using a bitwise OR to trigger on both edges.
+	d.pin.SetInterrupt(machine.PinRising|machine.PinFalling, unifiedHandler)
+}
+
+func (d *DigitalInput) UnsetInterrupt() {
+    d.pin.SetInterrupt(0, nil)
 }
 
 // Button abstraction
@@ -58,6 +109,22 @@ func NewKnob(adcPin machine.Pin) *Knob {
 
 func (k *Knob) Value() int {
 	return k.proc.Process(int(k.adc.Get()))
+}
+
+// Choice returns a value from the list chosen by the current knob position
+func (k *Knob) Choice(values []int) int {
+	if len(values) == 0 {
+		return 0
+	}
+	percent := float64(k.Value()) / 65535.0
+	if percent >= 1.0 {
+		return values[len(values)-1]
+	}
+	idx := int(percent * float64(len(values)))
+	if idx >= len(values) {
+		idx = len(values) - 1
+	}
+	return values[idx]
 }
 
 // AnalogueInput abstraction

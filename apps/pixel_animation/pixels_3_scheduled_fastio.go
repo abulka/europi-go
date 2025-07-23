@@ -3,7 +3,9 @@ package pixel_animation
 import (
 	"europi/buttons"
 	"europi/controls"
+	"europi/display"
 	"europi/scheduler"
+	"sync"
 	"time"
 )
 
@@ -24,7 +26,7 @@ type Pixels3 struct{}
 func (Pixels3) Name() string { return "Pixels 3 FastIO" }
 
 func (Pixels3) Run(hw *controls.Controls) {
-	ssd, ok := hw.Display.GetSSD1306().(SSD1306Device)
+	ssd, ok := hw.Display.GetSSD1306().(display.ISSD1306Device)
 	if !ok {
 		println("No SSD1306 device found or device does not support pixel operations, cannot run Pixels app")
 		return
@@ -45,12 +47,19 @@ func (Pixels3) Run(hw *controls.Controls) {
 		running:        true,
 	}
 
-	// Start the animation and scheduler
+	// Start the animation and scheduler with WaitGroup for clean shutdown
 	state.startCurrentAnimation()
-	go state.scheduler.Run()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		state.scheduler.Run()
+	}()
 	defer func() {
 		state.running = false
 		state.scheduler.Stop()
+		wg.Wait() // Wait for scheduler goroutine to exit
+		println("Scheduler stopped, exiting Pixels 3 app")
 	}()
 
 	// Input processing loop

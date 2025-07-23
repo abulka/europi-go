@@ -8,6 +8,7 @@ import "europi/display"
 // Implemented by both real and mock knobs
 type IKnob interface {
 	Value() int
+	Choice(values []int) int
 }
 
 type IButton interface {
@@ -16,6 +17,8 @@ type IButton interface {
 
 type IDigitalInput interface {
 	Get() bool
+	SetEdgeHandlers(riseCallback func(), fallCallback func())
+	UnsetInterrupt() // Unset the interrupt handler
 }
 
 type IAnalogueInput interface {

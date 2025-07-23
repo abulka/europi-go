@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -14,8 +15,9 @@ import (
 type Task struct {
 	ID           string
 	Callback     func()
-	ScheduledAt  int64
+	ScheduledAt  time.Time
 	CallbackName string
+	lowPriority  bool
 }
 
 // Scheduler manages and executes scheduled tasks
@@ -38,39 +40,33 @@ func New() *Scheduler {
 	}
 }
 
-// AddTask schedules a task to run after the specified delay
-func (s *Scheduler) AddTask(callback func(), delay time.Duration) {
-	s.AddTaskWithName(callback, delay, getFunctionName(callback))
-}
-
-// AddTaskWithName schedules a task with a specific name for identification
-func (s *Scheduler) AddTaskWithName(callback func(), delay time.Duration, name string) {
+// AddTask schedules a task with a specific name for identification
+func (s *Scheduler) AddTask(callback func(), delay time.Duration, name string) {
 	if s.HasTask(name) {
-		msg := fmt.Sprintf("Task with name '%s' already exists in the schedule", name)
-		// remove the existing task
 		s.RemoveTask(name, false)
-		// double check
-		if s.HasTask(name) {
-			msg += " but could not be removed."
-			panic(msg)
-		} else {
-			msg += " It has been removed and replaced with the new task."
-		}
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	scheduledAt := time.Now().Add(delay).UnixMilli()
-	id := fmt.Sprintf("%s_%d", name, scheduledAt)
+	scheduledAt := time.Now().Add(delay)
+	id := fmt.Sprintf("%s_%d", name, scheduledAt.UnixMilli())
+
+	lowPriority := false
+	if strings.HasPrefix(name, "low_") {
+		lowPriority = true
+		name = strings.TrimPrefix(name, "low_")
+	}
+
 	task := Task{
 		ID:           id,
 		Callback:     callback,
 		ScheduledAt:  scheduledAt,
 		CallbackName: name,
+		lowPriority:  lowPriority,
 	}
-
 	s.tasks[id] = task
+	// println("Task scheduled:", name, "at", scheduledAt.Format(time.RFC3339), "ID:", id)
 }
 
 // RemoveTask removes all tasks with the specified callback name
@@ -92,50 +88,86 @@ func (s *Scheduler) RemoveTask(name string, mustBeFound bool) bool {
 	return found
 }
 
-// RunOnce executes all tasks that are ready to run, ensuring removed tasks are not executed.
-func (s *Scheduler) RunOnce() {
+func (s *Scheduler) getReadyTasks() []Task {
 	s.mu.Lock()
-	if !s.enabled {
-		s.mu.Unlock()
-		return
-	}
+	defer s.mu.Unlock()
 
-	now := time.Now().UnixMilli()
-	ready := make([]Task, 0)
+	now := time.Now()
+	var ready []Task
 
-	// 1. Create a snapshot of ready tasks WITHOUT removing them yet.
+	// Snapshot ready tasks
 	for _, task := range s.tasks {
-		if task.ScheduledAt <= now {
+		if !task.ScheduledAt.After(now) { // Equivalent to: Before or Equal
 			ready = append(ready, task)
 		}
 	}
-	s.mu.Unlock() // Unlock after creating the snapshot.
+	if len(ready) != 0 {
+		// Optional: stable sort by ScheduledAt
+		sort.SliceStable(ready, func(i, j int) bool {
+			return ready[i].ScheduledAt.Before(ready[j].ScheduledAt)
+		})
+	}
+	return ready
+}
 
+// stillExists checks if a task exists by ID and deletes it if present. Returns true if deleted.
+// Assumes you are about to execute the task callback, hence needs to be removed from the schedule.
+func (s *Scheduler) stillExists(id string) bool {
+	s.mu.Lock()
+	_, stillExists := s.tasks[id]
+	if stillExists {
+		delete(s.tasks, id)
+	}
+	s.mu.Unlock()
+	return stillExists
+}
+
+// RunOnce identifies ready tasks and sends them to taskChan and taskChanLowPriority.
+// Never blocks. Unlocks before task execution.
+func (s *Scheduler) RunOnceTasks(taskChan, taskChanLowPriority chan<- func()) {
+	if !s.enabled {
+		return
+	}
+	ready := s.getReadyTasks()
 	if len(ready) == 0 {
 		return
 	}
 
-	// Sort for predictable execution order.
-	sort.SliceStable(ready, func(i, j int) bool {
-		return ready[i].ScheduledAt < ready[j].ScheduledAt
-	})
-
-	// 2. Loop through the snapshot and re-validate each task before running.
 	for _, taskToRun := range ready {
-		s.mu.Lock()
-		// 2a. Check if the task still exists in the main schedule.
-		if _, ok := s.tasks[taskToRun.ID]; !ok {
-			// It was removed by a previous task in this same batch. Skip it.
-			s.mu.Unlock()
-			continue
+		if s.stillExists(taskToRun.ID) {
+			if taskToRun.lowPriority {
+				select {
+				case taskChanLowPriority <- taskToRun.Callback:
+					// sent successfully
+				default:
+					// channel full, task dropped (optional: log or reschedule)
+				}
+			} else {
+				select {
+				case taskChan <- taskToRun.Callback:
+					// sent successfully
+				default:
+					// channel full, task dropped (optional: log or reschedule)
+				}
+			}
 		}
+	}
+}
 
-		// 2b. It exists, so remove it now, right before we run it.
-		delete(s.tasks, taskToRun.ID)
-		s.mu.Unlock() // Unlock BEFORE running the callback to prevent deadlocks.
+// RunOnce executes all tasks that are ready to run, ensuring removed tasks are not executed.
+func (s *Scheduler) RunOnce() {
+	if !s.enabled {
+		return
+	}
+	ready := s.getReadyTasks()
+	if len(ready) == 0 {
+		return
+	}
 
-		// 3. Execute the callback.
-		taskToRun.Callback()
+	for _, taskToRun := range ready {
+		if s.stillExists(taskToRun.ID) {
+			taskToRun.Callback()
+		}
 	}
 }
 
@@ -144,7 +176,7 @@ func (s *Scheduler) Run() {
 	fmt.Println("Scheduler started, running tasks...")
 	for s.IsEnabled() {
 		s.RunOnce()
-		time.Sleep(10 * time.Millisecond)
+		runtime.Gosched()
 	}
 }
 
@@ -186,7 +218,7 @@ func (s *Scheduler) PrintSchedule() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	now := time.Now().UnixMilli()
+	now := time.Now()
 	fmt.Println("Schedule:")
 	if len(s.tasks) == 0 {
 		fmt.Println("  No tasks in the schedule.")
@@ -199,18 +231,13 @@ func (s *Scheduler) PrintSchedule() {
 		tasks = append(tasks, task)
 	}
 	sort.SliceStable(tasks, func(i, j int) bool {
-		return tasks[i].ScheduledAt < tasks[j].ScheduledAt
+		return tasks[i].ScheduledAt.Before(tasks[j].ScheduledAt)
 	})
 
 	for _, task := range tasks {
-		timeRemaining := task.ScheduledAt - now
-		fmt.Printf("In %4dms %-15s\n", timeRemaining, task.CallbackName)
+		timeRemaining := task.ScheduledAt.Sub(now)
+		fmt.Printf("In %4dms %-15s\n", timeRemaining.Milliseconds(), task.CallbackName)
 	}
-}
-
-// getFunctionName attempts to get a readable name for debugging
-func getFunctionName(fn func()) string {
-	return fmt.Sprintf("task_%p", fn)
 }
 
 // HasTask checks if a task with the given name is scheduled

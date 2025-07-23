@@ -11,18 +11,9 @@ import (
 	"time"
 )
 
-// Type assert to the SSD1306 device interface
-type SSD1306Device interface {
-	SetPixel(x, y int16, c color.RGBA)
-	Display() error
-	ClearDisplay()
-	ClearBuffer()
-	FillRectangle(x, y, width, height int16, c color.RGBA) error
-}
-
 type AnimationState struct {
 	hw             *controls.Controls
-	ssd            SSD1306Device
+	ssd            display.ISSD1306Device
 	scheduler      *scheduler.Scheduler
 	width, height  int16
 	mode           int
@@ -102,7 +93,7 @@ func sineWaveAnimation(state *AnimationState) {
 	state.offset = (state.offset + state.animationStep) % state.width
 
 	// Reschedule next frame
-	state.scheduler.AddTaskWithName(func() { sineWaveAnimation(state) }, state.frameDelay, "animation")
+	state.scheduler.AddTask(func() { sineWaveAnimation(state) }, state.frameDelay, "animation")
 }
 
 func squareWaveAnimation(state *AnimationState) {
@@ -134,7 +125,7 @@ func squareWaveAnimation(state *AnimationState) {
 	state.offset = (state.offset + state.animationStep) % state.width
 
 	// Reschedule next frame
-	state.scheduler.AddTaskWithName(func() { squareWaveAnimation(state) }, state.frameDelay, "animation")
+	state.scheduler.AddTask(func() { squareWaveAnimation(state) }, state.frameDelay, "animation")
 }
 
 func randomLinesAnimation(state *AnimationState) {
@@ -156,7 +147,7 @@ func randomLinesAnimation(state *AnimationState) {
 	state.ssd.Display()
 
 	// Reschedule next frame
-	state.scheduler.AddTaskWithName(func() { randomLinesAnimation(state) }, state.frameDelay, "animation")
+	state.scheduler.AddTask(func() { randomLinesAnimation(state) }, state.frameDelay, "animation")
 }
 
 func randomRectanglesAnimation(state *AnimationState) {
@@ -211,7 +202,7 @@ func randomRectanglesAnimation(state *AnimationState) {
 	state.ssd.Display()
 
 	// Reschedule next frame
-	state.scheduler.AddTaskWithName(func() { randomRectanglesAnimation(state) }, state.frameDelay, "animation")
+	state.scheduler.AddTask(func() { randomRectanglesAnimation(state) }, state.frameDelay, "animation")
 }
 
 // Bresenham's line algorithm for RGBA color display

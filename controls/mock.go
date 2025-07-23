@@ -14,6 +14,22 @@ type MockKnob struct{ val int }
 func (m *MockKnob) Value() int     { return m.val }
 func (m *MockKnob) SetValue(v int) { m.val = v }
 
+// Choice returns a value from the list chosen by the current mock knob value
+func (m *MockKnob) Choice(values []int) int {
+	if len(values) == 0 {
+		return 0
+	}
+	percent := float64(m.Value()) / 65535.0
+	if percent >= 1.0 {
+		return values[len(values)-1]
+	}
+	idx := int(percent * float64(len(values)))
+	if idx >= len(values) {
+		idx = len(values) - 1
+	}
+	return values[idx]
+}
+
 // MockButton implements IButton
 // SetPressed allows test code to set the pressed state
 
@@ -25,10 +41,28 @@ func (m *MockButton) SetPressed(p bool) { m.pressed = p }
 // MockDigitalInput implements IDigitalInput
 // SetState allows test code to set the state
 
-type MockDigitalInput struct{ state bool }
+type MockDigitalInput struct{ 
+	state bool 
+	riseCallback func()
+	fallCallback func()
+}
 
 func (m *MockDigitalInput) Get() bool       { return m.state }
 func (m *MockDigitalInput) SetState(s bool) { m.state = s }
+
+func (d *MockDigitalInput) SetEdgeHandlers(riseCallback func(), fallCallback func()) {
+	// This is a mock, so we don't actually set any hardware interrupts.
+	// Instead, we just provide a way to set the callbacks if needed.
+	d.riseCallback = riseCallback
+	d.fallCallback = fallCallback
+}
+
+func (d *MockDigitalInput) UnsetInterrupt() {
+	// This is a mock, so we don't actually unset any hardware interrupts.
+	// Just reset the callbacks to nil.
+	d.riseCallback = nil
+	d.fallCallback = nil
+}
 
 // MockAnalogueInput implements IAnalogueInput
 // SetVolts/SetValue allow test code to set the values

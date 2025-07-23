@@ -12,7 +12,7 @@ import (
 func TestScheduler_AddTaskWithName(t *testing.T) {
 	s := New()
 	taskName := "test_task"
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		// Task logic
 	}, 1000*time.Millisecond, taskName)
 
@@ -28,7 +28,7 @@ func TestScheduler_AddTaskWithName(t *testing.T) {
 func TestScheduler_RemoveTask(t *testing.T) {
 	s := New()
 	taskName := "test_task"
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		// Task logic
 	}, 1000*time.Millisecond, taskName)
 
@@ -46,7 +46,7 @@ func TestScheduler_RemoveTask(t *testing.T) {
 func TestScheduler_Run(t *testing.T) {
 	s := New()
 	taskExecuted := false
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		taskExecuted = true
 	}, 100*time.Millisecond, "test_task")
 
@@ -64,11 +64,11 @@ func TestScheduler_TaskExecutionOrder(t *testing.T) {
 	s := New()
 	taskOrder := []string{}
 
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		taskOrder = append(taskOrder, "short_delay_task")
 	}, 5*time.Millisecond, "short_delay_task")
 
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		taskOrder = append(taskOrder, "long_delay_task")
 	}, 10*time.Millisecond, "long_delay_task")
 
@@ -90,9 +90,9 @@ func TestScheduler_TaskAddsAnotherTask(t *testing.T) {
 	s := New()
 	taskOrder := []string{}
 
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		taskOrder = append(taskOrder, "initial_task")
-		s.AddTaskWithName(func() {
+		s.AddTask(func() {
 			taskOrder = append(taskOrder, "added_task")
 		}, 50*time.Millisecond, "added_task")
 	}, 50*time.Millisecond, "initial_task")
@@ -120,11 +120,11 @@ func TestScheduler_PeriodicTaskReschedules(t *testing.T) {
 		fmt.Printf("Periodic task executed #%d\n", counter)
 		counter++
 		if counter < 4 {
-			s.AddTaskWithName(periodicTask, 50*time.Millisecond, fmt.Sprintf("periodic_task_%d", counter))
+			s.AddTask(periodicTask, 50*time.Millisecond, fmt.Sprintf("periodic_task_%d", counter))
 		}
 	}
 
-	s.AddTaskWithName(periodicTask, 50*time.Millisecond, "periodic_task_1")
+	s.AddTask(periodicTask, 50*time.Millisecond, "periodic_task_1")
 
 	go s.Run()
 	defer s.Stop()
@@ -170,7 +170,7 @@ func TestScheduler_RemoveRace_AddAfterRemove(t *testing.T) {
 	}
 
 	// Add the task
-	s.AddTaskWithName(task, 100*time.Millisecond, taskName)
+	s.AddTask(task, 100*time.Millisecond, taskName)
 
 	// Start the scheduler
 	go s.Run()
@@ -185,7 +185,7 @@ func TestScheduler_RemoveRace_AddAfterRemove(t *testing.T) {
 
 	// Slight delay then re-add the task with the same name
 	time.Sleep(20 * time.Millisecond)
-	s.AddTaskWithName(task, 100*time.Millisecond, taskName)
+	s.AddTask(task, 100*time.Millisecond, taskName)
 	fmt.Println("Task re-added")
 
 	// Allow scheduler time to run
@@ -202,12 +202,12 @@ func TestRemoveTaskWhileInFirstTask(t *testing.T) {
 	taskOneExecuted := false
 	taskTwoExecuted := false
 
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		taskOneExecuted = true
 		s.RemoveTask("test_task2", false)
 	}, 0*time.Millisecond, "test_task1")
 
-	s.AddTaskWithName(func() {
+	s.AddTask(func() {
 		taskTwoExecuted = true
 	}, 0*time.Millisecond, "test_task2")
 
@@ -249,7 +249,7 @@ func TestScheduler_Hammer(t *testing.T) {
 			taskName := fmt.Sprintf("hammer_task_%d", id)
 			for j := 0; j < iterations; j++ {
 				// Add a task with a short, random delay
-				s.AddTaskWithName(func() {}, time.Duration(rand.Intn(50))*time.Millisecond, taskName)
+				s.AddTask(func() {}, time.Duration(rand.Intn(50))*time.Millisecond, taskName)
 
 				// Immediately try to remove it
 				s.RemoveTask(taskName, false)
@@ -278,7 +278,7 @@ func TestScheduler_RescheduleChain(t *testing.T) {
 		atomic.AddInt32(&executionCount, 1)
 		// If we haven't reached the limit, reschedule myself.
 		if atomic.LoadInt32(&executionCount) < int32(executionLimit) {
-			s.AddTaskWithName(taskFunc, 10*time.Millisecond, taskName) // Reschedule
+			s.AddTask(taskFunc, 10*time.Millisecond, taskName) // Reschedule
 		}
 		wg.Done()
 	}
@@ -287,7 +287,7 @@ func TestScheduler_RescheduleChain(t *testing.T) {
 	go s.Run()
 
 	// 2. Add the first task to kick off the chain.
-	s.AddTaskWithName(taskFunc, 0*time.Millisecond, taskName)
+	s.AddTask(taskFunc, 0*time.Millisecond, taskName)
 
 	// 3. Wait here until wg.Done() has been called 5 times.
 	// This is the crucial step that waits for the test condition to be met.

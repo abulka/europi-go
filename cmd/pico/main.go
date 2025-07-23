@@ -11,11 +11,11 @@ package main
 
 import (
 	"europi/apps"
+	"europi/apps/pixel_animation"
 	"europi/cmd/pico/config"
 	"europi/controls"
 	"europi/display"
 	"europi/firmware"
-	"europi/apps/pixel_animation"
 	"time"
 )
 
@@ -40,6 +40,9 @@ func main() {
 	println("EuroPi configured (production mode).")
 
 	// Register apps
+	firmware.RegisterApp(apps.TriggerGateDelay{})
+	firmware.RegisterApp(apps.TriggerGateDelay2{})
+	firmware.RegisterApp(apps.TriggerMirror{})
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
 	firmware.RegisterApp(apps.FontDisplay{})

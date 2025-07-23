@@ -24,3 +24,12 @@ var (
 	ColorBlack = color.RGBA{0, 0, 0, 255}
 	ColorWhite = color.RGBA{255, 255, 255, 255}
 )
+
+// The raw device not my higher level IOledDevice
+type ISSD1306Device interface {
+	SetPixel(x, y int16, c color.RGBA)
+	Display() error
+	ClearDisplay()
+	ClearBuffer()
+	FillRectangle(x, y, width, height int16, c color.RGBA) error
+}

@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"europi/scheduler"       // Default scheduler implementation
+	"europi/scheduler" // Default scheduler implementation
 )
 
 // DemoApp demonstrates the scheduler functionality
@@ -42,13 +42,13 @@ func (app *DemoApp) run() {
 	go app.scheduler.Run()
 
 	// Schedule initial tasks
-	app.scheduler.AddTaskWithName(app.periodicTask, 1000, "periodic_task")
-	app.scheduler.AddTaskWithName(app.oneTimeTask, 500, "one_time_task")
-	app.scheduler.AddTaskWithName(app.printStatus, 2000, "print_status")
-	app.scheduler.AddTaskWithName(app.cancelledTask, 3000, "cancelled_task")
-	app.scheduler.AddTaskWithName(app.addMoreTasks, 4000, "add_more_tasks")
+	app.scheduler.AddTask(app.periodicTask, 1000*time.Millisecond, "periodic_task")
+	app.scheduler.AddTask(app.oneTimeTask, 500*time.Millisecond, "one_time_task")
+	app.scheduler.AddTask(app.printStatus, 2000*time.Millisecond, "print_status")
+	app.scheduler.AddTask(app.cancelledTask, 3000*time.Millisecond, "cancelled_task")
+	app.scheduler.AddTask(app.addMoreTasks, 4000*time.Millisecond, "add_more_tasks")
 
-	// app.scheduler.PrintSchedule()
+	app.scheduler.PrintSchedule()
 
 	// Cancel the task after 1 second
 	go func() {
@@ -77,7 +77,7 @@ func (app *DemoApp) periodicTask() {
 	// Reschedule BEFORE doing work to avoid race condition
 	if app.counter < 10 {
 		// Schedule the NEXT iteration first
-		app.scheduler.AddTaskWithName(app.periodicTask, 500,
+		app.scheduler.AddTask(app.periodicTask, 500*time.Millisecond,
 			fmt.Sprintf("periodic_task_%d", app.counter+1))
 
 		// fmt.Printf("[%s] Scheduled next periodic task (#%d)\n", time.Now().Format("15:04:05"), app.counter+1)
@@ -99,7 +99,7 @@ func (app *DemoApp) printStatus() {
 	// app.scheduler.PrintSchedule()
 
 	// Reschedule for 3 seconds later
-	app.scheduler.AddTaskWithName(app.printStatus, 3000, "print_status")
+	app.scheduler.AddTask(app.printStatus, 3000*time.Millisecond, "print_status")
 }
 
 // cancelledTask should never run because it gets cancelled
@@ -112,12 +112,12 @@ func (app *DemoApp) addMoreTasks() {
 	fmt.Printf("[%s] Adding more tasks...\n", time.Now().Format("15:04:05"))
 
 	// Add several tasks with different delays
-	app.scheduler.AddTaskWithName(app.quickTask, 100, "quick_task_1")
-	app.scheduler.AddTaskWithName(app.quickTask, 200, "quick_task_2")
-	app.scheduler.AddTaskWithName(app.quickTask, 1300, "quick_task_3")
+	app.scheduler.AddTask(app.quickTask, 100*time.Millisecond, "quick_task_1")
+	app.scheduler.AddTask(app.quickTask, 200*time.Millisecond, "quick_task_2")
+	app.scheduler.AddTask(app.quickTask, 1300*time.Millisecond, "quick_task_3")
 
 	// Add a task that will stop the demo after 10 seconds
-	app.scheduler.AddTaskWithName(app.stopDemo, 10000, "stop_demo")
+	app.scheduler.AddTask(app.stopDemo, 10000*time.Millisecond, "stop_demo")
 
 	println("👉 Added more tasks, current schedule:")
 	// app.scheduler.PrintSchedule()

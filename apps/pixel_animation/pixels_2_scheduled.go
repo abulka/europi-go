@@ -3,7 +3,9 @@ package pixel_animation
 import (
 	"europi/buttons"
 	"europi/controls"
+	"europi/display"
 	"europi/scheduler"
+	"sync"
 	"time"
 )
 
@@ -12,7 +14,7 @@ type Pixels2 struct{}
 func (Pixels2) Name() string { return "Pixels 2 Sched" }
 
 func (Pixels2) Run(hw *controls.Controls) {
-	ssd, ok := hw.Display.GetSSD1306().(SSD1306Device)
+	ssd, ok := hw.Display.GetSSD1306().(display.ISSD1306Device)
 	if !ok {
 		println("No SSD1306 device found or device does not support pixel operations, cannot run Pixels app")
 		return
@@ -35,14 +37,23 @@ func (Pixels2) Run(hw *controls.Controls) {
 	}
 
 	// Start the input handler
-	state.scheduler.AddTaskWithName(func() { inputHandler(state) }, 2*time.Millisecond, "input_handler")
+	state.scheduler.AddTask(func() { inputHandler(state) }, 2*time.Millisecond, "input_handler")
 
 	// Start the first animation
 	state.startCurrentAnimation()
 
-	// Run the scheduler
-	go state.scheduler.Run()
-	defer state.scheduler.Stop()
+	// Run the scheduler with WaitGroup for clean shutdown
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		state.scheduler.Run()
+	}()
+	defer func() {
+		state.scheduler.Stop()
+		wg.Wait() // Wait for scheduler goroutine to exit
+		println("Scheduler stopped, exiting Pixels 2 app")
+	}()
 
 	// Main loop just waits for exit condition
 	for state.running {
@@ -85,5 +96,5 @@ func inputHandler(state *AnimationState) {
 	}
 
 	// Reschedule input handler
-	state.scheduler.AddTaskWithName(func() { inputHandler(state) }, 2*time.Millisecond, "input_handler")
+	state.scheduler.AddTask(func() { inputHandler(state) }, 2*time.Millisecond, "input_handler")
 }
