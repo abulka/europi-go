@@ -3,7 +3,7 @@ package apps
 import (
 	"europi/buttons"
 	"europi/controls"
-	"europi/scheduler"
+	scheduler "europi/schedulerc"
 	"fmt"
 	"runtime"
 	"sync"
@@ -33,7 +33,7 @@ type TGDState struct {
 	expectedGateMs  int // for tracking expected duration
 
 	hw                 *controls.Controls
-	scheduler          *scheduler.Scheduler
+	scheduler          *scheduler.ChannelScheduler
 	running            bool
 	btnMgr             *buttons.ButtonManager
 	dinPulseWidth      time.Duration
@@ -51,15 +51,21 @@ type TGDState struct {
 	gatePulseWidth     time.Duration
 	knob1Range         []int
 	knob2Range         []int
-	afterOffSettlingMs time.Duration //  # time to wait after turning off gate or clock output, or it doesn't happen cleanly
+	afterOffSettling   time.Duration // time to wait after turning off gate or clock output, or it doesn't happen cleanly
 	debug              bool          // Enable debug output
 }
 
+/*
+Uses ChannelScheduler to run tasks in a separate goroutine (the normal mutex based scheduler crashed).
+1. goroutine: Task Scheduler
+2. goroutine: task channel executor for high-priority tasks
+3. goroutine: task channel executor for low-priority tasks
+4. main: main loop handles interrupts (creating tasks) and the user hardware controls (knobs and buttons).
+*/
 func (TriggerGateDelay) Run(hw *controls.Controls) {
 
 	state := &TGDState{
 		hw:          hw,
-		scheduler:   scheduler.New(),
 		running:     true,
 		btnMgr:      buttons.New(hw.B1, hw.B2),
 		knob1Range:  buildRange(),
@@ -69,6 +75,9 @@ func (TriggerGateDelay) Run(hw *controls.Controls) {
 		taskChanLow: make(chan func(), 16),
 		debug:       false,
 	}
+	// Create channel-only scheduler
+	state.scheduler = scheduler.NewChannelScheduler(state.taskChan, state.taskChanLow)
+
 	// WaitGroup to manage background goroutines for clean shutdown.
 	var wg sync.WaitGroup
 
@@ -120,18 +129,10 @@ func (TriggerGateDelay) Run(hw *controls.Controls) {
 		},
 	)
 
-	// An alternative to our calling state.scheduler.RunOnceTasks ourselves (in
-	// our main loop here) is to get the scheduler to run in a separate
-	// goroutine and look after running the normal and low priority tasks. The
-	// scheduler would probably need to do this using two channels (not implemented). So that's
-	// three goroutines:
-	//
-	// 1. The main Scheduler Run function loop
-	// 2. The task channel executor for high-priority tasks
-	// 3. The task channel executor for low-priority tasks
-	//
-	// go state.scheduler.Run()
-	// defer state.scheduler.Stop()
+	wg.Add(1)
+	go state.scheduler.Run(&wg) // Start the scheduler in a separate goroutine
+	defer state.scheduler.Stop()
+	// time.Sleep(1 * time.Second) // Allow time for the scheduler to start for TinyGo
 
 	wg.Add(1)
 	go func() {
@@ -146,6 +147,7 @@ func (TriggerGateDelay) Run(hw *controls.Controls) {
 			runtime.Gosched() // Yield to allow other goroutines to run
 		}
 	}()
+	// time.Sleep(1 * time.Second) // Allow time for the go routine to start for TinyGo
 
 	wg.Add(1)
 	go func() {
@@ -160,83 +162,102 @@ func (TriggerGateDelay) Run(hw *controls.Controls) {
 			runtime.Gosched() // Yield to allow other goroutines to run
 		}
 	}()
+	// time.Sleep(1 * time.Second) // Allow time for the go routine to start for TinyGo
 
 	state.scheduler.AddTask(state.drawScreen, 0*time.Millisecond, "low_drawScreen")
 	state.scheduler.AddTask(state.saveState, 5*time.Second, "saveState")
 
+	// Main Loop, Blocks on channels, timer used to check for user controls
+	var timer *time.Timer       // pointer to a time.Timer object
+	var timerC <-chan time.Time // receive-only channel of type time.Time
 	for state.running {
 
-		// Step 1: Perform a NON-BLOCKING check for DIN events.
-		// The 'default' case means the loop doesn't wait here if the channel is empty.
+		nextWake := 30 * time.Millisecond // 10ms is too fast and crashes
+
+		if timer == nil {
+			timer = time.NewTimer(nextWake) // timer has a channel field called C
+			timerC = timer.C                // channel receives a value (the current time) when the timer expires.
+		} else {
+			timer.Stop()
+			timer.Reset(nextWake) // Update the timer to the new duration wanted
+		}
+
 		select {
 		case isRise := <-state.edgeEvents:
-			if isRise {
-				now := time.Now()
-				if !state.lastTrigger.IsZero() {
-					oldPeriod := state.dinPeriod
-					oldHz := state.dinHz
-					state.dinPeriod = now.Sub(state.lastTrigger)
-					calcHz(state)
-					if state.dinPeriod != oldPeriod || state.dinHz != oldHz {
-						state.updateUI = true
-					}
-				}
-				state.lastTrigger = now
+			state.handleDinEvent(isRise)
+		case <-timerC:
 
-				delay := state.gateDelay
-				if state.gateIsHigh {
-					state.gateOff()
-					state.scheduler.RemoveTask("gateOff", false) // cancel the existing gate_off task
-					delay = max(state.gateDelay, state.afterOffSettlingMs)
-				}
-				state.scheduler.RemoveTask("gateOn", false) // false means don't care if not found
-				if state.gateRunning {
-					state.scheduler.AddTask(state.gateOn, delay, "gateOn")
-					// state.gateOn() // HACK
-				}
-
-			} else {
-				state.dinPulseWidth = time.Since(state.lastTrigger)
-				// state.gateOff() // HACK
+			// Handle button presses
+			switch state.btnMgr.Update() {
+			case buttons.B1Press:
+				state.gateRunning = !state.gateRunning
+				state.updateUI = true
 			}
-		default:
-			// No event waiting, so we immediately continue to the next step.
+
+			// Handle knob changes
+			state.handleKnobChanges()
+
+			if state.btnMgr.BothHeld() {
+				println("Exiting due to long press")
+				state.running = false
+				continue
+			}
+
 		}
 
-		switch state.btnMgr.Update() {
-		case buttons.B1Press:
-			state.gateRunning = !state.gateRunning
-			state.updateUI = true
-		}
+		time.Sleep(1 * time.Millisecond) // runtime.Gosched() doesn't work
+	} // End of main loop
+}
 
-		// k1 := state.hw.K1.Choice(state.knob1Range)
-		k1 := state.hw.K1.Value()
-		if k1 != state.lastK1 {
-			state.gatePulseWidth = time.Duration(k1) * time.Millisecond
-			state.lastK1 = k1
-			state.updateUI = true
-		}
+func (s *TGDState) handleKnobChanges() {
+	// Handle K1 - gate pulse width
+	k1 := s.hw.K1.Value() // Assuming this returns 0-1023 or similar
+	if k1 != s.lastK1 {
+		s.gatePulseWidth = time.Duration(k1) * time.Millisecond
+		s.lastK1 = k1
+		s.updateUI = true
+	}
 
-		if state.btnMgr.BothHeld() {
-			println("Exiting due to long press")
-			state.running = false
-			// return // Exit the Run function
-			continue // Skip to the top to exit loop
-		}
-
-		// k2 := state.hw.K2.Choice(state.knob2Range)
-		k2 := state.hw.K2.Value()
-		if k2 != state.lastK2 {
-			state.gateDelay = time.Duration(k2) * time.Millisecond
-			state.lastK2 = k2
-			state.updateUI = true
-		}
-
-		state.scheduler.RunOnceTasks(state.taskChan, state.taskChanLow)
-
-		runtime.Gosched() // [optional] yield to allow task executor to run
+	// Handle K2 - gate delay
+	k2 := s.hw.K2.Value()
+	if k2 != s.lastK2 {
+		s.gateDelay = time.Duration(k2) * time.Millisecond
+		s.lastK2 = k2
+		s.updateUI = true
 	}
 }
+
+func (s *TGDState) handleDinEvent(isRise bool) {
+	if isRise {
+		now := time.Now()
+		if !s.lastTrigger.IsZero() {
+			oldPeriod := s.dinPeriod
+			oldHz := s.dinHz
+			s.dinPeriod = now.Sub(s.lastTrigger)
+			calcHz(s)
+			if s.dinPeriod != oldPeriod || s.dinHz != oldHz {
+				s.updateUI = true
+			}
+		}
+		s.lastTrigger = now
+
+		delay := s.gateDelay
+		if s.gateIsHigh {
+			s.gateOff()
+			s.scheduler.RemoveTask("gateOff") // Cancel existing gateOff
+			delay = max(s.gateDelay, s.afterOffSettling)
+		}
+		s.scheduler.RemoveTask("gateOn") // Cancel any pending gateOn
+		if s.gateRunning {
+			s.scheduler.AddTask(s.gateOn, delay, "gateOn")
+			// s.gateOn() // HACK: Call directly for immediate effect
+		}
+	} else {
+		s.dinPulseWidth = time.Since(s.lastTrigger)
+		// s.gateOff() // HACK: Call directly for immediate effect
+	}
+}
+
 
 //	func (s *TGDState) gateOn() {
 //		s.hw.CV1.On()
@@ -317,7 +338,7 @@ func (s *TGDState) drawScreen() {
 		s.hw.Display.Display()
 		s.updateUI = false
 	}
-	s.fakeWork() // Stress the system pretending display update is heavy
+	// s.fakeWork() // Stress the system pretending display update is heavy
 
 	s.scheduler.AddTask(s.drawScreen, 150*time.Millisecond, "low_drawScreen")
 }
