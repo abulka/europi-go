@@ -18,10 +18,10 @@ tinygo flash -target=pico --monitor ./cmd/pico
 ```
 
 If flashing fails, you may need to reset the EuroPi. 
-- Unplug the USB cable then 
-- Press and hold the reset button on the Pico device whilst re-connecting the USB cable.
+- Unplug the Micro USB cable from the EuroPi device (the Pi Pico).
+- Run the above flash command again. Whilst it is compiling and waiting for the device to be connected, do the following:
+- Press and hold the reset button on the Pico device whilst re-connecting the Micro USB cable.
 - Release the reset button.
-- Run the above flash command again
 
 ### To build the firmware without flashing:
 

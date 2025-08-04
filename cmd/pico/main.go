@@ -11,7 +11,6 @@ package main
 
 import (
 	"europi/apps"
-	"europi/apps/pixel_animation"
 	"europi/cmd/pico/config"
 	"europi/controls"
 	"europi/display"
@@ -40,16 +39,14 @@ func main() {
 	println("EuroPi configured (production mode).")
 
 	// Register apps
-	firmware.RegisterApp(apps.TriggerGateDelay{})
+	firmware.RegisterApp(apps.MultiPulseSync{})
 	firmware.RegisterApp(apps.TriggerGateDelay2{})
 	firmware.RegisterApp(apps.TriggerMirror{})
 	firmware.RegisterApp(apps.Diagnostic{})
 	firmware.RegisterApp(apps.HelloWorld{})
 	firmware.RegisterApp(apps.FontDisplay{})
 	firmware.RegisterApp(apps.MenuFun{})
-	firmware.RegisterApp(pixel_animation.Pixels{})
-	firmware.RegisterApp(pixel_animation.Pixels2{})
-	firmware.RegisterApp(pixel_animation.Pixels3{})
+	firmware.RegisterApp(apps.Pixels4{})
 
 	firmware.SplashScreen(hw)
 	println("Entering main menu loop. Press B2 to select an app, K2 to scroll.")
