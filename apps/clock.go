@@ -10,6 +10,129 @@ import (
 	"time"
 )
 
+// MultipliersEditor provides a UI and logic for editing pulse multipliers/divisors.
+type MultipliersEditor struct {
+	pulses    []*PulseOutput
+	selected  int // 0..4 (CV1, CV2, CV4, CV5, CV6)
+	knob2Last int
+}
+
+func NewMultipliersEditor(pulses []*PulseOutput, knob2 int) *MultipliersEditor {
+	return &MultipliersEditor{
+		pulses:    pulses,
+		selected:  0,
+		knob2Last: knob2,
+	}
+}
+
+func (e *MultipliersEditor) HandleControls(state *PulseState) {
+	switch state.btnMgr.Update() {
+	case buttons.B1Press:
+		state.editingMultipliers = !state.editingMultipliers
+		state.updateUI = true
+		if !state.editingMultipliers {
+			return // If exiting editor, no further processing needed
+		}
+	}
+	k1 := state.hw.K1.Value()
+	k2 := state.hw.K2.Value()
+	// Map K1 (0..100) to 5 editable CVs (CV1, CV2, CV4, CV5, CV6)
+	var newSelected int
+	switch {
+	case k1 <= 20:
+		newSelected = 0 // CV1
+	case k1 <= 40:
+		newSelected = 1 // CV2
+	case k1 <= 60:
+		newSelected = 2 // CV4
+	case k1 <= 80:
+		newSelected = 3 // CV5
+	default:
+		newSelected = 4 // CV6
+	}
+	if newSelected != e.selected {
+		e.selected = newSelected
+		state.updateUI = true
+	}
+	// Get the actual pulse index for editing (skip CV3)
+	var pulseIdx int
+	if e.selected < 2 {
+		pulseIdx = e.selected // CV1, CV2
+	} else {
+		pulseIdx = e.selected + 1 // CV4, CV5, CV6
+	}
+	if k2 != e.knob2Last {
+		p := e.pulses[pulseIdx]
+		// Only allow editing multiplier/divisor for this pulse
+		if p.Mult >= 1.0 {
+			// Range: 1x to 8x
+			p.Mult = 1.0 + float64(k2)/20.0 // K2: 0-100 -> 1.0-6.0
+		} else {
+			// Range: 1/2 to 1/8
+			div := 2 + k2/20 // K2: 0-100 -> 2-7
+			p.Mult = 1.0 / float64(div)
+			p.Divisor = int(math.Round(1.0 / p.Mult))
+		}
+		e.knob2Last = k2
+		state.updateUI = true
+	}
+	if state.btnMgr.BothHeld() {
+		state.running = false
+		return
+	}
+}
+
+func (e *MultipliersEditor) DrawScreen(hw *controls.Controls) {
+	hw.Display.ClearBuffer()
+	// First line: CV1 CV2 CV3
+	line1 := ""
+	for i := 0; i < 3; i++ {
+		var val string
+		if i == 2 {
+			val = "1:1"
+		} else {
+			p := e.pulses[i]
+			if p.Mult < 1.0 {
+				val = fmt.Sprintf("1/%d", p.Divisor)
+			} else {
+				val = fmt.Sprintf("%.1fx", p.Mult)
+			}
+		}
+		sel := " "
+		// Cursor: only for editable CVs
+		if (e.selected == i) && (i != 2) {
+			sel = ">"
+		}
+		line1 += fmt.Sprintf("%s%s ", sel, val)
+	}
+	hw.Display.WriteLine(0, line1)
+
+	// Second line: CV4 CV5 CV6
+	line2 := ""
+	for i := 3; i < 6; i++ {
+		p := e.pulses[i]
+		var val string
+		if p.Mult < 1.0 {
+			val = fmt.Sprintf("1/%d", p.Divisor)
+		} else {
+			val = fmt.Sprintf("%.1fx", p.Mult)
+		}
+		sel := " "
+		// Cursor: only for editable CVs
+		if e.selected == (i-1) && i != 3 {
+			sel = ">"
+		}
+		if e.selected == 2 && i == 3 {
+			sel = ">"
+		}
+		line2 += fmt.Sprintf("%s%s ", sel, val)
+	}
+	hw.Display.WriteLine(1, line2)
+
+	hw.Display.WriteLine(2, "K1:sel K2:edit")
+	hw.Display.Display()
+}
+
 // MultiPulseSync is a clock-synchronized pulse generator.
 // It can sync to an external DIN signal or run on its own internal clock set by K2.
 // It uses a hybrid timing system:
@@ -54,6 +177,9 @@ type PulseState struct {
 	debug      bool // If true, enables debug output to the console.
 
 	justSwitchedToDIN bool // True if we just switched to DIN mode and need to set dinPeriod directly
+
+	editingMultipliers bool
+	multipliersEditor  *MultipliersEditor
 }
 
 // resetAndFireMultipliers resets phase to zero and fires a pulse for all multipliers (CV4, CV5, CV6).
@@ -108,6 +234,8 @@ func (MultiPulseSync) Run(hw *controls.Controls) {
 		}
 	}
 
+	state.multipliersEditor = NewMultipliersEditor(state.pulses, state.knob2)
+
 	// --- Setup ISR for DIN sync ---
 	hw.DIN.SetEdgeHandlers(
 		func() { // Rising edge handler
@@ -136,7 +264,11 @@ func (MultiPulseSync) Run(hw *controls.Controls) {
 		defer wg.Done()
 		for state.running {
 			if state.updateUI {
-				state.drawScreen()
+				if state.editingMultipliers {
+					state.multipliersEditor.DrawScreen(state.hw)
+				} else {
+					state.drawScreen()
+				}
 				state.updateUI = false
 			}
 			time.Sleep(100 * time.Millisecond)
@@ -151,7 +283,11 @@ func (MultiPulseSync) Run(hw *controls.Controls) {
 		state.lastTickTime = now
 
 		// 1. Handle knobs and buttons
-		state.handleControls()
+		if !state.editingMultipliers {
+			state.handleControls()
+		} else {
+			state.multipliersEditor.HandleControls(state)
+		}
 
 		// 2. Set tempo source from knob if in free mode
 		if !state.syncToDIN {
@@ -294,18 +430,27 @@ func firePulse(p *PulseOutput, now time.Time, width time.Duration) {
 func (s *PulseState) handleControls() {
 	switch s.btnMgr.Update() {
 	case buttons.B1Press:
-		s.cvEnabled = !s.cvEnabled
-		if !s.cvEnabled {
-			for _, p := range s.pulses {
-				if p.IsHigh {
-					p.CV.Off()
-					p.IsHigh = false
-				}
-				p.Phase = 0.0
-			}
-		}
+		// Toggle multipliers editor
+		s.editingMultipliers = !s.editingMultipliers
 		s.updateUI = true
+		if s.editingMultipliers {
+			return // If entering editor, no further processing needed
+		}
+		// Old CV toggle logic
+		// s.cvEnabled = !s.cvEnabled
+		// if !s.cvEnabled {
+		// 	for _, p := range s.pulses {
+		// 		if p.IsHigh {
+		// 			p.CV.Off()
+		// 			p.IsHigh = false
+		// 		}
+		// 		p.Phase = 0.0
+		// 	}
+		// }
 	case buttons.B2Press:
+		if s.editingMultipliers {
+			break
+		}
 		prevSyncToDIN := s.syncToDIN
 		s.syncToDIN = !s.syncToDIN
 		s.dinCounter = 0 // Reset counter when changing mode
@@ -344,17 +489,44 @@ func (s *PulseState) drawScreen() {
 
 	s.hw.Display.WriteLine(0, fmt.Sprintf("Sync:%s CVs:%s", syncStatus, cvEnabledStatus))
 
-	// K1 is displayed but currently has no function.
-	s.hw.Display.WriteLine(1, fmt.Sprintf("K1: %-3d (n/a)", s.knob1))
+	// Compose the full line string for all CVs
+	fullLine := fmt.Sprintf("K1:help CV1:%s CV2:%s CV3:%s CV4:%s CV5:%s CV6:%s Press B1 to edit CV multipliers, Press B2 to toggle clock sync (DIN/Free running)", formatMult(s.pulses[0]), formatMult(s.pulses[1]), formatMult(s.pulses[2]), formatMult(s.pulses[3]), formatMult(s.pulses[4]), formatMult(s.pulses[5]))
+	// Physical display width is 16 chars
+	displayWidth := 16
+	// Use K1 to set scroll offset (0..100 maps to 0..maxOffset)
+	maxOffset := 0
+	if len(fullLine) > displayWidth {
+		maxOffset = len(fullLine) - displayWidth
+	}
+	scrollOffset := 0
+	if maxOffset > 0 {
+		scrollOffset = (s.knob1 * maxOffset) / 100
+		if scrollOffset > maxOffset {
+			scrollOffset = maxOffset
+		}
+	}
+	// Render the visible window
+	visible := fullLine
+	if len(fullLine) > displayWidth {
+		visible = fullLine[scrollOffset : scrollOffset+displayWidth]
+	}
+	s.hw.Display.WriteLine(2, visible)
 
 	if s.syncToDIN {
-		s.hw.Display.WriteLine(2, fmt.Sprintf("%.1fHz %dms", s.dinHz, s.dinPeriod.Milliseconds()))
+		s.hw.Display.WriteLine(1, fmt.Sprintf("%.1fHz %dms", s.dinHz, s.dinPeriod.Milliseconds()))
 	} else {
 		bpm := int(s.dinHz * 60.0)
-		s.hw.Display.WriteLine(2, fmt.Sprintf("K2: %d BPM", bpm))
+		s.hw.Display.WriteLine(1, fmt.Sprintf("K2: %d BPM", bpm))
 	}
 
 	s.hw.Display.Display()
+}
+
+func formatMult(p *PulseOutput) string {
+	if p.Mult < 1.0 {
+		return fmt.Sprintf("1/%d", p.Divisor)
+	}
+	return fmt.Sprintf("%.1fx", p.Mult)
 }
 
 // mapKnobToHz converts the K2 knob value (0-100) to a frequency in Hz.
